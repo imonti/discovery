@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dithering</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --background-top: oklch(20.8% 0.042 265.755);
+        --background-bottom: oklch(12.9% 0.042 264.695);
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: linear-gradient(to top, var(--background-bottom), var(--background-top));
+      }
+
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
