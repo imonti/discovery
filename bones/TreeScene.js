@@ -1,32 +1,157 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { BarkMaterial } from "./BarkMaterial.js";
+import { LeavesMaterial } from "./LeavesMaterial.js";
 import { findNodeByName } from "./GraphUtils.js";
 import { shortestArcQuaternion } from "./Utils.js";
 import { Windvane } from "./Windvane.js";
+import { pane } from "./config.js";
+import leavesTextureUrl from "./model/big_leaves.png?url";
+import { uniform } from "three/tsl";
 
 class TreeScene extends THREE.Object3D {
   windvane = null;
   skeleton = null;
+  model = null;
+  leaves = null;
+  barkDiffuseTexture = null;
+  barkNormalTexture = null;
+  leafTexture = null;
+  leafCsv = null;
+  sunLight = null;
+  sunDirection = null;
+  sunIntensity = null;
 
   constructor() {
     super();
+    this.initializeSceneIlumination();
+  }
+
+  initializeSceneIlumination() {
+    const skyLight = new THREE.HemisphereLight("#bfe8ff", "#6b5137", 2.5);
+    skyLight.name = "MiddaySkyLight";
+    this.add(skyLight);
+
+    const lightingSettings = {
+      x: 3,
+      y: -10,
+      z: 10,
+      intensity: 1,
+    };
+    this.sunLight = new THREE.DirectionalLight(0xfff1cf, 1);
+    this.sunLight.name = "MiddaySunLight";
+    this.sunDirection = uniform(new THREE.Vector3());
+    this.sunIntensity = uniform(lightingSettings.intensity);
+
+    const lightingFolder = pane.addFolder({ title: "lighting" });
+    for (const axis of ["x", "y", "z"]) {
+      const positionBinding = lightingFolder.addBinding(lightingSettings, axis, {
+        min: -20,
+        max: 20,
+        step: 0.1,
+      });
+      positionBinding.on("change", () => this.updateSunLighting());
+    }
+    const intensityBinding = lightingFolder.addBinding(
+      lightingSettings,
+      "intensity",
+      {
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+    );
+    intensityBinding.on("change", () => this.updateSunLighting());
+
+    this.sunLightingSettings = lightingSettings;
+    this.updateSunLighting();
+    this.add(this.sunLight);
+  }
+
+  updateSunLighting() {
+    const { x, y, z, intensity } = this.sunLightingSettings;
+    this.sunLight.position.set(x, y, z);
+    this.sunLight.intensity = intensity;
+    this.sunDirection.value
+      .copy(this.sunLight.target.position)
+      .sub(this.sunLight.position)
+      .normalize();
+    this.sunIntensity.value = intensity;
   }
 
   load() {
-    const loader = new GLTFLoader();
-    loader.loadAsync("./model/tree1.glb").then(({ scene }) => {
-      this.initialize(scene);
-    });
+    const gltfLoader = new GLTFLoader();
+    const textureLoader = new THREE.TextureLoader();
+
+    Promise.all([
+      gltfLoader.loadAsync("./model/tree.glb"),
+      textureLoader.loadAsync("./model/bark_diffuse.png"),
+      textureLoader.loadAsync("./model/bark_normal.png"),
+      textureLoader.loadAsync(leavesTextureUrl),
+      fetch("./model/leaf_instances.csv").then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Unable to load leaf_instances.csv: ${response.status}`,
+          );
+        }
+        return response.text();
+      }),
+    ]).then(
+      ([
+        { scene },
+        barkDiffuseTexture,
+        barkNormalTexture,
+        leafTexture,
+        leafCsv,
+      ]) => {
+        this.barkDiffuseTexture = barkDiffuseTexture;
+        this.barkDiffuseTexture.colorSpace = THREE.SRGBColorSpace;
+        this.barkDiffuseTexture.wrapS = THREE.RepeatWrapping;
+        this.barkDiffuseTexture.wrapT = THREE.RepeatWrapping;
+        this.barkNormalTexture = barkNormalTexture;
+        this.barkNormalTexture.wrapS = THREE.RepeatWrapping;
+        this.barkNormalTexture.wrapT = THREE.RepeatWrapping;
+        this.model = scene;
+        this.leafTexture = leafTexture;
+        this.leafCsv = leafCsv;
+        this.leafTexture.colorSpace = THREE.SRGBColorSpace;
+        this.leafTexture.wrapS = THREE.ClampToEdgeWrapping;
+        this.leafTexture.wrapT = THREE.ClampToEdgeWrapping;
+        this.leafTexture.repeat.set(1 / 3, 1 / 3);
+        // Three.js UVs start at the bottom, so the image's top-left cell is
+        // the third row from the bottom.
+        this.leafTexture.offset.set(0, 2 / 3);
+        this.initialize();
+      },
+    );
   }
 
-  initialize(model) {
+  initialize() {
     // The GLTF asset uses a coordinate frame that is rotated +90 degrees
     // around Z relative to this scene. Keep the complete loaded hierarchy
     // under this corrected root so geometry and bones receive the same
     // transform.
     // model.rotation.z = -Math.PI / 2;
+    const model = this.model;
     model.updateMatrix();
     this.add(model);
+
+    const leavesMaterial = new LeavesMaterial(
+      this.leafCsv,
+      this.leafTexture,
+      this.sunDirection,
+      this.sunIntensity,
+    );
+    this.leaves = new THREE.Sprite(leavesMaterial);
+    this.leaves.count = leavesMaterial.instanceCount;
+    this.leaves.name = "Leaves";
+    this.add(this.leaves);
+
+    const mesh = findNodeByName(model, "TreeGeometry");
+    mesh.material = new BarkMaterial({
+      map: this.barkDiffuseTexture,
+      nMap: this.barkNormalTexture,
+    });
 
     this.windvane = new Windvane();
     this.windvane.onChange = () => this.update(0);
@@ -50,23 +175,13 @@ class TreeScene extends THREE.Object3D {
     this.skeleton.userData.maxDepth = maxDepth;
 
     const rootResponse = 0.1;
-    const distanceExponent = 1.5;
+    const distanceExponent = 3;
     this.skeleton.updateWorldMatrix(false, true);
     this.skeleton.traverse((bone) => {
       if (!bone.isBone) return;
       bone.userData.initialMatrix = bone.matrix.clone();
       bone.userData.initialPosition = bone.position.clone();
       bone.userData.initialScale = bone.scale.clone();
-
-      const rawNoiseScale = Number(bone.userData.noiseScale);
-      const samplerIndex = Number.isFinite(rawNoiseScale)
-        ? Math.floor(rawNoiseScale)
-        : 0;
-      bone.userData.noiseScale = THREE.MathUtils.clamp(
-        samplerIndex,
-        0,
-        this.windvane.windSamplers.length - 1,
-      );
 
       // Save the branch's original world orientation. Wind is always computed
       // from this rest pose, never from the branch's orientation in the
@@ -88,11 +203,37 @@ class TreeScene extends THREE.Object3D {
         rootResponse +
         (1 - rootResponse) * Math.pow(normalizedDepth, distanceExponent);
 
-      // Vector2 uses x for world X and y for world Z. The Reference Point starts
+      // Vector2 uses x for world X and y for world Y. The Reference Point starts
       // at the origin, so this is the rest-pose sampling coordinate. During
       // update(), the moving Reference Point is subtracted from this value.
-      bone.userData.uv = new THREE.Vector2(worldPosition.x, worldPosition.z);
+      bone.userData.uv = new THREE.Vector2(worldPosition.x, worldPosition.y);
+      bone.userData.noiseScale = this.computeNoiseScale(bone);
     });
+  }
+
+  computeNoiseScale(bone) {
+    const maxNoiseScale = this.windvane.windSamplers.length - 1;
+    const hasNoiseScale =
+      bone.userData.noiseScale !== undefined &&
+      bone.userData.noiseScale !== null;
+
+    if (!hasNoiseScale) {
+      // Automatically add finer octaves as the bone gets farther from the
+      // root. Divide the normalized depth into one band per sampler so the
+      // highest octave is assigned to the entire final band.
+      const samplerCount = this.windvane.windSamplers.length;
+      return Math.min(
+        maxNoiseScale,
+        Math.floor(bone.userData.normalizedDepth * samplerCount),
+      );
+    }
+
+    const rawNoiseScale = Number(bone.userData.noiseScale);
+    const sanitizedNoiseScale = Number.isFinite(rawNoiseScale)
+      ? Math.floor(rawNoiseScale)
+      : 0;
+
+    return THREE.MathUtils.clamp(sanitizedNoiseScale, 0, maxNoiseScale);
   }
 
   update(deltaTime = 0) {

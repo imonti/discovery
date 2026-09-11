@@ -7,10 +7,10 @@ class Windvane {
     // The Windvane is a controller. The visible Three.js object is exposed
     // separately so callers can add it to any scene or hierarchy they want.
     this.display = new THREE.ArrowHelper(
-      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(0, -1, 0),
       new THREE.Vector3(),
       1,
-      0xffffff,
+      0x999999,
     );
     this._configInitialized = false;
     this._direction = null;
@@ -18,9 +18,9 @@ class Windvane {
     this.referencePoint = new THREE.Vector2();
     this.windSamplers = samplerSizes.map((size) => createPerlinSampler(size));
     this._settings = {
-      direction: Math.PI / 2,
-      k: 0,
-      noiseSpeed: 1,
+      direction: 0,
+      k: 0.4,
+      noiseSpeed: 0.2,
     };
   }
 
@@ -48,8 +48,8 @@ class Windvane {
 
     const kBinding = windFolder.addBinding(this._settings, "k", {
       label: "k",
-      min: -0.5,
-      max: 0.5,
+      min: -1,
+      max: 1,
       step: 0.01,
     });
 
@@ -92,11 +92,12 @@ class Windvane {
 
     this._direction = normalizedDirection;
 
-    // Positive r moves from +X toward +Z in the XZ plane.
+    // Keep the explicit angular basis: angle 0 is -Y, and positive angles
+    // rotate clockwise around +Z when viewed from +Z (-Y -> +X).
     const direction = new THREE.Vector3(
-      Math.cos(normalizedDirection),
-      0,
       Math.sin(normalizedDirection),
+      -Math.cos(normalizedDirection),
+      0,
     );
     this.display.setDirection(direction);
   }
@@ -113,9 +114,9 @@ class Windvane {
     const direction = this.getDirection();
     const distance = this.getNoiseSpeed() * deltaTime;
 
-    // Vector2 uses x for world X and y for world Z.
+    // Vector2 uses x for world X and y for world Y.
     this.referencePoint.x += direction.x * distance;
-    this.referencePoint.y += direction.z * distance;
+    this.referencePoint.y += direction.y * distance;
   }
 
   sampleNoise(u, v, index) {
@@ -128,7 +129,7 @@ class Windvane {
     let value = 0;
     let amplitude = 1;
     let amplitudeSum = 0;
-    const persistence = 0.5;
+    const persistence = 0.8;
 
     // Include every octave from the broadest sampler through the selected
     // maximum octave. Normalize the result to keep its amplitude stable as
@@ -142,7 +143,7 @@ class Windvane {
     return amplitudeSum > 0 ? value / amplitudeSum : 0;
   }
 
-  /** Return the wind direction as a normalized world-space XZ vector. */
+  /** Return the wind direction as a normalized world-space vector. */
   getDirection() {
     this.display.updateWorldMatrix(true, false);
     return new THREE.Vector3(0, 1, 0).transformDirection(

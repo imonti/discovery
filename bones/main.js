@@ -1,10 +1,4 @@
-import {
-  AmbientLight,
-  Color,
-  DirectionalLight,
-  PerspectiveCamera,
-  Scene,
-} from "three";
+import { Color, PerspectiveCamera, Scene } from "three";
 import * as THREE from "three";
 import { WebGPURenderer } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -12,7 +6,7 @@ import { Grid } from "./Grid.js";
 import { TreeScene } from "./TreeScene.js";
 
 const scene = new Scene();
-scene.background = new Color(0x18181b);
+scene.background = new Color(0xFFFFFF);
 
 const camera = new PerspectiveCamera(
   50,
@@ -20,7 +14,10 @@ const camera = new PerspectiveCamera(
   0.1,
   100,
 );
-camera.position.set(3, 1, 3);
+// Match the Blender authoring view: +X comes toward the camera, +Y is
+// screen-right, and +Z is screen-up.
+camera.position.set(3, -1, 1);
+camera.up.set(0, 0, 1);
 
 const renderer = new WebGPURenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -29,20 +26,16 @@ document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+controls.target.set(0, -0.25, 0.5);
+controls.update();
 const timer = new THREE.Timer();
 
-const grid = new Grid();
-scene.add(grid);
-
-scene.add(new AmbientLight(0xffffff, 1.5));
-
-const keyLight = new DirectionalLight(0xffffff, 3);
-keyLight.position.set(3, 4, 5);
-scene.add(keyLight);
+// const grid = new Grid();
+// scene.add(grid);
 
 const tree = new TreeScene();
-scene.add(tree)
-tree.load()
+scene.add(tree);
+tree.load();
 
 function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;

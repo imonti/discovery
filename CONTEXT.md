@@ -10,7 +10,7 @@ This repo contains a small set of standalone Three.js / WebGPU visual experience
 - `Valley` - the SVG-driven landscape demo in `valley/`.
 - `Bones` - the tree demo in `bones/`, where each branch is treated as a segment/bone.
 - `segment` - a branch treated as a directed edge from its local origin toward its local positive Y endpoint.
-- `wind direction` - a normalized world-space vector `w` constrained to the XZ plane, shared by all segments.
+- `wind direction` - a normalized world-space vector `w` constrained to the XY plane, shared by all segments.
 - `full tilt` - the wind state where every segment's world-space direction equals the wind direction.
 - `rest pose` - the original, undeformed arrangement and orientation of all segments before wind is applied.
 - `no twist` - wind changes a segment's pointing direction without changing its rest-pose roll around its longitudinal axis.
@@ -26,13 +26,20 @@ This repo contains a small set of standalone Three.js / WebGPU visual experience
 - `precomputed bend profile` - rest-path distances and their normalized distance factors are calculated during initialization and reused while the wind strength changes.
 - `moving wind noise` - a spatial noise field sampled at segment coordinates translated over time along the wind direction.
 - `reference point` - a virtual point in the world XZ plane whose accumulated movement translates the wind-noise sampling domain.
-- `wind reference point` - the public Windvane-owned XZ position, initialized at the origin and advanced by the current wind direction, speed, and elapsed time.
-- `reference point coordinates` - a `Vector2` convention where `.x` represents world X and `.y` represents world Z.
-- `sampling coordinates` - the XZ displacement from the reference point to a segment's rest-pose world position.
+- `wind reference point` - the public Windvane-owned XY position, initialized at the origin and advanced by the current wind direction, speed, and elapsed time.
+- `reference point coordinates` - a `Vector2` convention where `.x` represents world X and `.y` represents world Y.
+- `sampling coordinates` - the XY displacement from the reference point to a segment's rest-pose world position.
 - `noise bend ratio` - the signed local interpolation ratio produced by multiplying global wind strength, the sampled noise value, and the segment's distance-based susceptibility.
 - `wind sampler bank` - an ordered collection of Perlin samplers where lower indices provide broad trunk-scale variation and higher indices provide finer twig-scale variation.
 - `noise sampler index` - the integer authoring value on a bone that selects one sampler from the wind sampler bank; Blender exports it as `bone.userData.noiseScale`.
 - `noise octave index` - the integer authoring value on a bone that selects the highest octave included in its normalized multi-scale noise mix; Blender exports it as `bone.userData.noiseScale`.
+- `octave depth bands` - equal normalized-distance intervals that map segments to noise octave indices, with the final interval clamped to the highest available octave.
+- `wind phase lead` - an octave-dependent spatial offset along the wind direction that makes finer branches respond earlier than coarser branches.
 - `sanitized sampler index` - the validated integer sampler index stored during tree initialization, defaulting to 0 when the Blender property is absent or invalid.
 - `sampler bank configuration` - the ordered sampler lattice sizes supplied to Windvane; when omitted, the default scales are broad-to-fine `[2, 4]`.
 - `sampler bank contract` - caller-provided sampler sizes are trusted to be sorted positive integers greater than 1.
+- `Blender authoring coordinates` - leaf instance positions exported from Blender use a Z-up basis where +X is unchanged, +Y maps toward Three.js -Z, and +Z is vertical.
+- `Bones scene coordinates` - the Three.js tree scene uses a Y-up basis; Blender leaf positions are converted as `(x, y, z) -> (x, z, -y)` before rendering.
+- `Blender-aligned camera view` - the Bones camera looks from Blender +X toward the origin, with Blender +Z as screen-up and Blender +Y as screen-right.
+- `leaf sprite roll` - the exported `rot_z_deg` value is retained as the camera-facing sprite's screen-space roll; Blender X/Y rotation is not applied to sprites.
+- `leaf material` - the leaf sprite material owns CSV instance-attribute parsing and GPU attribute nodes, while the Bones scene owns the instanced Sprite object and its scene attachment.
