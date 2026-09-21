@@ -1,23 +1,43 @@
 import * as THREE from "three";
-import { MeshStandardNodeMaterial } from "three/webgpu";
+import { MeshBasicNodeMaterial } from "three/webgpu";
 import {
   Fn,
+  bitangentWorld,
   hue,
   mix,
-  normalMap,
+  normalWorldGeometry,
   saturation,
+  tangentWorld,
+  vec4,
   texture,
   uniform,
   uv,
-  vec4,
 } from "three/tsl";
 import { pane } from "./config.js";
+import { sampleIBLIrradiance } from "./utils/sampleIBLIrradiance.js";
 
-class BarkMaterial extends MeshStandardNodeMaterial {
-  constructor({ map, nMap }) {
+class BarkMaterial extends MeshBasicNodeMaterial {
+  sampleNormalMap(uvNode) {
+    const sampledNormal = texture(this.normalMap, uvNode).xyz;
+
+    // Normal maps encode tangent-space normals in the [0, 1] range.
+    return sampledNormal.mul(2).sub(1).normalize();
+  }
+
+  combineNormals(baseNormalWorld, tangentNormal, tangentWorldNode, bitangentWorldNode) {
+    return tangentWorldNode
+      .mul(tangentNormal.x)
+      .add(bitangentWorldNode.mul(tangentNormal.y))
+      .add(baseNormalWorld.mul(tangentNormal.z))
+      .normalize();
+  }
+
+  constructor({ map, nMap, environmentTexture }) {
     super();
+    this.lights = false;
+    this.normalMap = nMap;
     this.name = "BarkMaterial";
-    const settings = { uvScale: 5 };
+    const settings = { uvScale: 3 };
     const barkFolder = pane.addFolder({ title: "bark" });
     const uvScaleBinding = barkFolder.addBinding(settings, "uvScale", {
       label: "uv scale",
@@ -29,9 +49,9 @@ class BarkMaterial extends MeshStandardNodeMaterial {
     const defaultUvScale = settings.uvScale;
     this.uvScale = uniform(new THREE.Vector2(defaultUvScale, defaultUvScale));
     this.scaledUv = uv().mul(this.uvScale);
-    this.valueUniform = uniform(1.5);
-    this.factorUniform = uniform(1);
-    this.saturationUniform = uniform(0.5);
+    this.valueUniform = uniform(0.6);
+    this.factorUniform = uniform(1.0);
+    this.saturationUniform = uniform(0.6);
     this.hueUniform = uniform(0);
 
     barkFolder.addBinding(this.valueUniform, "value", {
@@ -70,20 +90,28 @@ class BarkMaterial extends MeshStandardNodeMaterial {
       this.saturationUniform,
       this.valueUniform,
     );
-    this.colorNode = vec4(
-      mix(mapNode.rgb, adjustedColor, this.factorUniform),
-      mapNode.a,
+    const barkColor = mix(mapNode.rgb, adjustedColor, this.factorUniform);
+    const tangentNormal = this.sampleNormalMap(this.scaledUv);
+    const barkNormalWorld = this.combineNormals(
+      normalWorldGeometry,
+      tangentNormal,
+      tangentWorld,
+      bitangentWorld,
     );
-
-    this.normalNode = normalMap(
-      texture(nMap, this.scaledUv),
-      new THREE.Vector2(2, 2),
+    const irradiance = sampleIBLIrradiance(
+      environmentTexture,
+      barkNormalWorld,
+    );
+    this.colorNode = vec4(
+      barkColor.mul(irradiance),
+      mapNode.a,
     );
 
     uvScaleBinding.on("change", ({ value }) => {
       this.uvScale.value.set(value, value);
     });
   }
+
 }
 
 export { BarkMaterial };

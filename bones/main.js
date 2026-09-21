@@ -7,6 +7,7 @@ import { TreeScene } from "./TreeScene.js";
 
 const scene = new Scene();
 scene.background = new Color(0xFFFFFF);
+// scene.background = new Color(0x333333);
 
 const camera = new PerspectiveCamera(
   50,

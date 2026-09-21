@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 import { BarkMaterial } from "./BarkMaterial.js";
-import { LeavesMaterial } from "./LeavesMaterial.js";
 import { findNodeByName } from "./GraphUtils.js";
 import { shortestArcQuaternion } from "./Utils.js";
 import { Windvane } from "./Windvane.js";
+import { TreeLeaves } from "./TreeLeaves.js";
 import { pane } from "./config.js";
 import leavesTextureUrl from "./model/big_leaves.png?url";
-import { uniform } from "three/tsl";
 
 class TreeScene extends THREE.Object3D {
   windvane = null;
@@ -16,75 +16,69 @@ class TreeScene extends THREE.Object3D {
   leaves = null;
   barkDiffuseTexture = null;
   barkNormalTexture = null;
-  leafTexture = null;
-  leafCsv = null;
-  sunLight = null;
-  sunDirection = null;
-  sunIntensity = null;
+  environmentTexture = null;
+  environmentBackground = null;
+  environmentSettings = {
+    rotationX: Math.PI / 2,
+    rotationY: 0,
+    rotationZ: 0,
+    preview: false,
+  };
 
   constructor() {
     super();
-    this.initializeSceneIlumination();
-  }
 
-  initializeSceneIlumination() {
-    const skyLight = new THREE.HemisphereLight("#bfe8ff", "#6b5137", 2.5);
-    skyLight.name = "MiddaySkyLight";
-    this.add(skyLight);
-
-    const lightingSettings = {
-      x: 3,
-      y: -10,
-      z: 10,
-      intensity: 1,
-    };
-    this.sunLight = new THREE.DirectionalLight(0xfff1cf, 1);
-    this.sunLight.name = "MiddaySunLight";
-    this.sunDirection = uniform(new THREE.Vector3());
-    this.sunIntensity = uniform(lightingSettings.intensity);
-
-    const lightingFolder = pane.addFolder({ title: "lighting" });
-    for (const axis of ["x", "y", "z"]) {
-      const positionBinding = lightingFolder.addBinding(lightingSettings, axis, {
-        min: -20,
-        max: 20,
-        step: 0.1,
+    const environmentFolder = pane.addFolder({ title: "environment" });
+    for (const axis of ["X", "Y", "Z"]) {
+      const rotationBinding = environmentFolder.addBinding(
+        this.environmentSettings,
+        `rotation${axis}`,
+        {
+          label: `rotation ${axis.toLowerCase()}`,
+          min: -Math.PI,
+          max: Math.PI,
+          step: 0.01,
+        },
+      );
+      rotationBinding.on("change", () => {
+        this.updateEnvironmentRotation();
       });
-      positionBinding.on("change", () => this.updateSunLighting());
     }
-    const intensityBinding = lightingFolder.addBinding(
-      lightingSettings,
-      "intensity",
-      {
-        min: 0,
-        max: 2,
-        step: 0.01,
-      },
-    );
-    intensityBinding.on("change", () => this.updateSunLighting());
 
-    this.sunLightingSettings = lightingSettings;
-    this.updateSunLighting();
-    this.add(this.sunLight);
+    const previewBinding = environmentFolder.addBinding(
+      this.environmentSettings,
+      "preview",
+      { label: "background preview" },
+    );
+    previewBinding.on("change", () => {
+      this.updateEnvironmentRotation();
+    });
   }
 
-  updateSunLighting() {
-    const { x, y, z, intensity } = this.sunLightingSettings;
-    this.sunLight.position.set(x, y, z);
-    this.sunLight.intensity = intensity;
-    this.sunDirection.value
-      .copy(this.sunLight.target.position)
-      .sub(this.sunLight.position)
-      .normalize();
-    this.sunIntensity.value = intensity;
+  updateEnvironmentRotation() {
+    const scene = this.parent;
+    if (!scene?.isScene) return;
+
+    const { rotationX, rotationY, rotationZ, preview } =
+      this.environmentSettings;
+    scene.environmentRotation.set(rotationX, rotationY, rotationZ);
+
+    if (preview && this.environmentTexture) {
+      scene.background = this.environmentTexture;
+      scene.backgroundRotation.copy(scene.environmentRotation);
+    } else if (this.environmentBackground) {
+      scene.background = this.environmentBackground;
+    }
   }
 
   load() {
     const gltfLoader = new GLTFLoader();
+    const exrLoader = new EXRLoader();
     const textureLoader = new THREE.TextureLoader();
 
     Promise.all([
       gltfLoader.loadAsync("./model/tree.glb"),
+      exrLoader.loadAsync("./model/forest.exr"),
       textureLoader.loadAsync("./model/bark_diffuse.png"),
       textureLoader.loadAsync("./model/bark_normal.png"),
       textureLoader.loadAsync(leavesTextureUrl),
@@ -99,11 +93,19 @@ class TreeScene extends THREE.Object3D {
     ]).then(
       ([
         { scene },
+        environmentTexture,
         barkDiffuseTexture,
         barkNormalTexture,
         leafTexture,
         leafCsv,
       ]) => {
+        environmentTexture.mapping = THREE.EquirectangularReflectionMapping;
+        this.environmentTexture = environmentTexture;
+        if (this.parent?.isScene) {
+          this.environmentBackground = this.parent.background;
+          this.parent.environment = environmentTexture;
+          this.updateEnvironmentRotation();
+        }
         this.barkDiffuseTexture = barkDiffuseTexture;
         this.barkDiffuseTexture.colorSpace = THREE.SRGBColorSpace;
         this.barkDiffuseTexture.wrapS = THREE.RepeatWrapping;
@@ -112,15 +114,11 @@ class TreeScene extends THREE.Object3D {
         this.barkNormalTexture.wrapS = THREE.RepeatWrapping;
         this.barkNormalTexture.wrapT = THREE.RepeatWrapping;
         this.model = scene;
-        this.leafTexture = leafTexture;
-        this.leafCsv = leafCsv;
-        this.leafTexture.colorSpace = THREE.SRGBColorSpace;
-        this.leafTexture.wrapS = THREE.ClampToEdgeWrapping;
-        this.leafTexture.wrapT = THREE.ClampToEdgeWrapping;
-        this.leafTexture.repeat.set(1 / 3, 1 / 3);
-        // Three.js UVs start at the bottom, so the image's top-left cell is
-        // the third row from the bottom.
-        this.leafTexture.offset.set(0, 2 / 3);
+        this.leaves = new TreeLeaves({
+          csvText: leafCsv,
+          texture: leafTexture,
+          environmentTexture,
+        });
         this.initialize();
       },
     );
@@ -136,21 +134,13 @@ class TreeScene extends THREE.Object3D {
     model.updateMatrix();
     this.add(model);
 
-    const leavesMaterial = new LeavesMaterial(
-      this.leafCsv,
-      this.leafTexture,
-      this.sunDirection,
-      this.sunIntensity,
-    );
-    this.leaves = new THREE.Sprite(leavesMaterial);
-    this.leaves.count = leavesMaterial.instanceCount;
-    this.leaves.name = "Leaves";
     this.add(this.leaves);
 
     const mesh = findNodeByName(model, "TreeGeometry");
     mesh.material = new BarkMaterial({
       map: this.barkDiffuseTexture,
       nMap: this.barkNormalTexture,
+      environmentTexture: this.environmentTexture,
     });
 
     this.windvane = new Windvane();
