@@ -6,14 +6,17 @@ import { findNodeByName } from "./GraphUtils.js";
 import { shortestArcQuaternion } from "./Utils.js";
 import { Windvane } from "./Windvane.js";
 import { TreeLeaves } from "./TreeLeaves.js";
+import { LeafParticles } from "./LeafParticles.js";
 import { pane } from "./config.js";
 import leavesTextureUrl from "./model/big_leaves.png?url";
+import leafParticleTextureUrl from "./model/leaf.png?url";
 
 class TreeScene extends THREE.Object3D {
   windvane = null;
   skeleton = null;
   model = null;
   leaves = null;
+  leafParticles = null;
   barkDiffuseTexture = null;
   barkNormalTexture = null;
   environmentTexture = null;
@@ -82,6 +85,7 @@ class TreeScene extends THREE.Object3D {
       textureLoader.loadAsync("./model/bark_diffuse.png"),
       textureLoader.loadAsync("./model/bark_normal.png"),
       textureLoader.loadAsync(leavesTextureUrl),
+      textureLoader.loadAsync(leafParticleTextureUrl),
       fetch("./model/leaf_instances.csv").then((response) => {
         if (!response.ok) {
           throw new Error(
@@ -97,6 +101,7 @@ class TreeScene extends THREE.Object3D {
         barkDiffuseTexture,
         barkNormalTexture,
         leafTexture,
+        leafParticleTexture,
         leafCsv,
       ]) => {
         environmentTexture.mapping = THREE.EquirectangularReflectionMapping;
@@ -119,6 +124,10 @@ class TreeScene extends THREE.Object3D {
           texture: leafTexture,
           environmentTexture,
         });
+        this.leafParticles = new LeafParticles({
+          texture: leafParticleTexture,
+          environmentTexture,
+        });
         this.initialize();
       },
     );
@@ -135,6 +144,7 @@ class TreeScene extends THREE.Object3D {
     this.add(model);
 
     this.add(this.leaves);
+    this.add(this.leafParticles);
 
     const mesh = findNodeByName(model, "TreeGeometry");
     mesh.material = new BarkMaterial({
@@ -229,6 +239,7 @@ class TreeScene extends THREE.Object3D {
   update(deltaTime = 0) {
     if (!this.skeleton) return;
 
+    this.leafParticles.update(deltaTime);
     this.windvane.update(deltaTime);
 
     // w is a single normalized direction in world space. Every segment is
