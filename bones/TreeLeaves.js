@@ -1,27 +1,41 @@
 import * as THREE from "three";
 import { LeavesMaterial } from "./LeavesMaterial.js";
 
-class TreeLeaves extends THREE.Group {
-  constructor({ csvText, texture, environmentTexture }) {
-    super();
-
-    this.name = "Leaves";
-
+class TreeLeaves {
+  constructor({ csvText, texture, environmentTexture, skeleton }) {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.repeat.set(1 / 3, 1 / 3);
-    // Three.js UVs start at the bottom, so the image's top-left cell is
-    // the third row from the bottom.
-    texture.offset.set(0, 2 / 3);
 
     const material = new LeavesMaterial(texture, environmentTexture);
     const leafColor = new THREE.Color("#92AD2A");
     const transforms = parseLeafTransforms(csvText);
+    const boneBases = collectBoneBases(skeleton);
+    // Keep sprite selection repeatable while still distributing leaves across
+    // the 3x3 spritesheet grid.
+    THREE.MathUtils.seededRandom(0x1eaf);
 
     for (const { position, rotation, scale, normal } of transforms) {
       const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-      leaf.position.copy(position);
+      // Store normalized cell offsets: 0, 1/3, or 2/3 on each axis.
+      const leafUvOffset = new THREE.Vector2(
+        Math.floor(THREE.MathUtils.seededRandom() * 3) / 3,
+        Math.floor(THREE.MathUtils.seededRandom() * 3) / 3,
+      );
+      const uvAttribute = leaf.geometry.getAttribute("uv");
+      for (let vertexIndex = 0; vertexIndex < uvAttribute.count; vertexIndex++) {
+        uvAttribute.setXY(
+          vertexIndex,
+          uvAttribute.getX(vertexIndex) / 3 + leafUvOffset.x,
+          uvAttribute.getY(vertexIndex) / 3 + leafUvOffset.y,
+        );
+      }
+      uvAttribute.needsUpdate = true;
+      const bone = findClosestBone(position, boneBases);
+      const localPosition = bone.worldToLocal(position.clone());
+      leaf.position.copy(localPosition);
+      // Preserve the exported rest-pose rotation values without compensating
+      // for the new bone parent.
       leaf.rotation.copy(rotation);
       leaf.scale.set(scale.x, scale.y, 1);
       const vertexCount = leaf.geometry.getAttribute("position").count;
@@ -39,12 +53,44 @@ class TreeLeaves extends THREE.Group {
         "color",
         new THREE.BufferAttribute(colors, 3),
       );
-      this.add(leaf);
+      bone.add(leaf);
     }
   }
 }
 
 export { TreeLeaves };
+
+function collectBoneBases(skeleton) {
+  const boneBases = [];
+  skeleton.updateWorldMatrix(true, true);
+  skeleton.traverse((bone) => {
+    if (!bone.isBone || bone.children.some((child) => child.isBone)) return;
+    boneBases.push({
+      bone,
+      position: bone.getWorldPosition(new THREE.Vector3()),
+    });
+  });
+  return boneBases;
+}
+
+function findClosestBone(worldPosition, boneBases) {
+  let closest = null;
+  let closestDistanceSquared = Infinity;
+
+  for (const boneBase of boneBases) {
+    const distanceSquared = worldPosition.distanceToSquared(boneBase.position);
+    if (distanceSquared < closestDistanceSquared) {
+      closest = boneBase.bone;
+      closestDistanceSquared = distanceSquared;
+    }
+  }
+
+  if (!closest) {
+    throw new Error("TreeLeaves requires a skeleton with at least one bone");
+  }
+
+  return closest;
+}
 
 function parseLeafTransforms(csvText) {
   const lines = csvText.trim().split(/\r?\n/);

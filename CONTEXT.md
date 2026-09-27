@@ -43,4 +43,5 @@ This repo contains a small set of standalone Three.js / WebGPU visual experience
 - `Blender-aligned camera view` - the Bones camera looks from Blender +X toward the origin, with Blender +Z as screen-up and Blender +Y as screen-right.
 - `leaf sprite roll` - the exported `rot_z_deg` value is retained as the camera-facing sprite's screen-space roll; Blender X/Y rotation is not applied to sprites.
 - `leaf world normal` - each exported leaf normal is an authoritative world-space direction used to determine that leaf's diffuse environment irradiance; it is not a plane-local normal.
+- `leaf bone attachment` - a leaf is attached to the bone whose world-space base point (bone origin) is closest to the leaf's world-space position.
 - `leaf material` - the leaf sprite material owns CSV instance-attribute parsing and GPU attribute nodes, while the Bones scene owns the instanced Sprite object and its scene attachment.

@@ -19,8 +19,10 @@ class Windvane {
     this.windSamplers = samplerSizes.map((size) => createPerlinSampler(size));
     this._settings = {
       direction: 0,
-      k: 0.4,
+      k: 0.5,
       noiseSpeed: 0.2,
+      amplitude: 0.5,
+      persistence: 0.2,
     };
   }
 
@@ -57,10 +59,32 @@ class Windvane {
       this._settings,
       "noiseSpeed",
       {
-      label: "noise speed",
+      label: "speed",
       min: 0,
       max: 5,
       step: 0.01,
+      },
+    );
+
+    const amplitudeBinding = windFolder.addBinding(
+      this._settings,
+      "amplitude",
+      {
+        label: "amplitude",
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+    );
+
+    const persistenceBinding = windFolder.addBinding(
+      this._settings,
+      "persistence",
+      {
+        label: "persistence",
+        min: 0,
+        max: 1,
+        step: 0.01,
       },
     );
 
@@ -74,6 +98,14 @@ class Windvane {
     });
 
     noiseSpeedBinding.on("change", () => {
+      if (this.onChange !== null) this.onChange();
+    });
+
+    amplitudeBinding.on("change", () => {
+      if (this.onChange !== null) this.onChange();
+    });
+
+    persistenceBinding.on("change", () => {
       if (this.onChange !== null) this.onChange();
     });
 
@@ -127,20 +159,22 @@ class Windvane {
     );
 
     let value = 0;
-    let amplitude = 1;
+    let octaveAmplitude = 1;
     let amplitudeSum = 0;
-    const persistence = 0.8;
+    const persistence = this._settings.persistence;
 
     // Include every octave from the broadest sampler through the selected
     // maximum octave. Normalize the result to keep its amplitude stable as
     // more octaves are added.
     for (let octave = 0; octave <= maxOctave; octave++) {
-      value += amplitude * this.windSamplers[octave](u, v);
-      amplitudeSum += amplitude;
-      amplitude *= persistence;
+      value += octaveAmplitude * this.windSamplers[octave](u, v);
+      amplitudeSum += octaveAmplitude;
+      octaveAmplitude *= persistence;
     }
 
-    return amplitudeSum > 0 ? value / amplitudeSum : 0;
+    return amplitudeSum > 0
+      ? (value / amplitudeSum) * this._settings.amplitude
+      : 0;
   }
 
   /** Return the wind direction as a normalized world-space vector. */
