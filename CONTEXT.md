@@ -11,6 +11,7 @@ This repo contains a small set of standalone Three.js / WebGPU visual experience
 - `Bones` - the tree demo in `bones/`, where each branch is treated as a segment/bone.
 - `segment` - a branch treated as a directed edge from its local origin toward its local positive Y endpoint.
 - `wind direction` - a normalized world-space vector `w` constrained to the XY plane, shared by all segments.
+- `wind intensity` - a scalar wind strength evaluated at a world-space position and time, used to modulate future sway.
 - `full tilt` - the wind state where every segment's world-space direction equals the wind direction.
 - `rest pose` - the original, undeformed arrangement and orientation of all segments before wind is applied.
 - `no twist` - wind changes a segment's pointing direction without changing its rest-pose roll around its longitudinal axis.

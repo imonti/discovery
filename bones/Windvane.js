@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { pane } from "./config.js";
 import { createPerlinSampler } from "../noise/noise2D.js";
+import { Fn, triNoise3D, uniform } from "three/tsl";
 
 class Windvane {
   constructor(samplerSizes = [2, 4]) {
@@ -24,6 +25,27 @@ class Windvane {
       amplitude: 0.5,
       persistence: 0.2,
     };
+    this.directionUniform = uniform(new THREE.Vector3(0, -1, 0));
+    this.noiseSpeedUniform = uniform(this._settings.noiseSpeed);
+    this.amplitudeUniform = uniform(this._settings.amplitude);
+    this.windIntensity = Fn(([position, currentTime]) => {
+      const animatedPosition = position.add(
+        this.directionUniform
+          .mul(this.noiseSpeedUniform)
+          .mul(currentTime),
+      );
+      return triNoise3D(animatedPosition, 1, currentTime)
+        .mul(2)
+        .sub(1)
+        .mul(this.amplitudeUniform);
+    }).setLayout({
+      name: "windIntensity",
+      type: "float",
+      inputs: [
+        { name: "position", type: "vec3" },
+        { name: "currentTime", type: "float" },
+      ],
+    });
   }
 
   /**
@@ -98,10 +120,12 @@ class Windvane {
     });
 
     noiseSpeedBinding.on("change", () => {
+      this.noiseSpeedUniform.value = this._settings.noiseSpeed;
       if (this.onChange !== null) this.onChange();
     });
 
     amplitudeBinding.on("change", () => {
+      this.amplitudeUniform.value = this._settings.amplitude;
       if (this.onChange !== null) this.onChange();
     });
 
@@ -131,6 +155,7 @@ class Windvane {
       -Math.cos(normalizedDirection),
       0,
     );
+    this.directionUniform.value.copy(direction);
     this.display.setDirection(direction);
   }
 

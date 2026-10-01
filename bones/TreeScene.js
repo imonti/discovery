@@ -1,6 +1,8 @@
 import * as THREE from "three";
+import { RenderPipeline } from "three/webgpu";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
+import { gaussianBlur } from "three/addons/tsl/display/GaussianBlurNode.js";
 import { BarkMaterial } from "./BarkMaterial.js";
 import { findNodeByName } from "./GraphUtils.js";
 import { shortestArcQuaternion } from "./Utils.js";
@@ -9,6 +11,7 @@ import { TreeLeaves } from "./TreeLeaves.js";
 import { LeafParticles } from "./LeafParticles.js";
 import { Grass } from "./Grass.js";
 import { pane } from "./config.js";
+import { pass, uniform } from "three/tsl";
 import leavesTextureUrl from "./model/big_leaves.png?url";
 import leafParticleTextureUrl from "./model/leaf.png?url";
 import grassTextureUrl from "./model/grass.png?url";
@@ -24,6 +27,8 @@ class TreeScene extends THREE.Object3D {
   barkNormalTexture = null;
   environmentTexture = null;
   environmentBackground = null;
+  postProcessing = null;
+  blurIntensity = uniform(0.1);
   environmentSettings = {
     rotationX: Math.PI / 2,
     rotationY: 0,
@@ -59,6 +64,26 @@ class TreeScene extends THREE.Object3D {
     previewBinding.on("change", () => {
       this.updateEnvironmentRotation();
     });
+
+    const postProcessingFolder = pane.addFolder({
+      title: "post processing",
+      expanded: false,
+    });
+    postProcessingFolder.addBinding(this.blurIntensity, "value", {
+      label: "blur intensity",
+      min: 0,
+      max: 10,
+      step: 0.01,
+    });
+  }
+
+  initializePostProcessing(renderer, camera) {
+    const scenePass = pass(this.parent, camera);
+    const scenePassColor = scenePass.getTextureNode("output");
+    const blur = gaussianBlur(scenePassColor, this.blurIntensity, 4);
+
+    this.postProcessing = new RenderPipeline(renderer);
+    this.postProcessing.outputNode = blur;
   }
 
   updateEnvironmentRotation() {
@@ -143,10 +168,12 @@ class TreeScene extends THREE.Object3D {
           texture: leafParticleTexture,
           environmentTexture,
         });
+        this.windvane ??= new Windvane();
         this.grass = new Grass({
           csvText: grassCsv,
           texture: grassTexture,
           environmentTexture,
+          windvane: this.windvane,
         });
         this.initialize();
       },
@@ -187,7 +214,7 @@ class TreeScene extends THREE.Object3D {
 
     this.add(this.grass);
 
-    this.windvane = new Windvane();
+    this.windvane ??= new Windvane();
     this.windvane.onChange = () => this.update(0);
     this.windvane.enableConfig();
     // this.add(this.windvane.display);

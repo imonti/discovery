@@ -13,6 +13,7 @@ import {
   smoothstep,
   step,
   texture as textureNode,
+  time,
   uniform,
   uv,
   vec2,
@@ -21,8 +22,10 @@ import {
 } from "three/tsl";
 
 class Grass extends THREE.Group {
-  constructor({ csvText, texture, environmentTexture }) {
+  constructor({ csvText, texture, environmentTexture, windvane }) {
     super();
+
+    this.windvane = windvane;
 
     const instances = parseGrassInstances(csvText);
     const geometry = new THREE.InstancedBufferGeometry().copy(
@@ -62,7 +65,7 @@ class Grass extends THREE.Group {
     const material = new MeshBasicNodeMaterial({
       side: THREE.DoubleSide,
     });
-    const grassFolder = pane.addFolder({ title: "grass", expanded: true });
+    const grassFolder = pane.addFolder({ title: "grass", expanded: false });
     const fadeFolder = grassFolder.addFolder({ title: "fade"});
     const fadeLower = uniform(0);
     const fadeUpper = uniform(0.15);
@@ -85,6 +88,24 @@ class Grass extends THREE.Group {
       max: 1,
       step: 0.01,
     });
+    const swayFolder = grassFolder.addFolder({
+      title: "sway",
+      expanded: false,
+    });
+    const swayIntensity = uniform(1);
+    const swaySpeed = uniform(0.1);
+    swayFolder.addBinding(swayIntensity, "value", {
+      label: "intensity",
+      min: 0,
+      max: 3,
+      step: 0.01,
+    });
+    swayFolder.addBinding(swaySpeed, "value", {
+      label: "speed",
+      min: 0,
+      max: 5,
+      step: 0.01,
+    });
     const toneMappingFolder = grassFolder.addFolder({
       title: "tone mapping"
     });
@@ -102,7 +123,20 @@ class Grass extends THREE.Group {
       const viewPosition = modelViewMatrix.mul(
         vec4(instancePosition, 1),
       );
-      const spriteOffset = positionGeometry.xy.mul(instanceScale.yx);
+      const normalizedHeight = positionGeometry.y.div(0.12).add(0.5);
+      const windIntensity = this.windvane.windIntensity(
+        instancePosition,
+        time.mul(swaySpeed),
+      );
+      const sway = windIntensity
+        .mul(normalizedHeight)
+        .mul(0.12)
+        .mul(instanceScale.x)
+        .mul(swayIntensity);
+      const spriteOffset = vec2(
+        positionGeometry.x.mul(instanceScale.y).add(sway),
+        positionGeometry.y.mul(instanceScale.x),
+      );
 
       return vec4(viewPosition.xy.add(spriteOffset), viewPosition.zw);
     };

@@ -2,7 +2,6 @@ import { Color, PerspectiveCamera, Scene } from "three";
 import * as THREE from "three";
 import { WebGPURenderer } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Grid } from "./Grid.js";
 import { TreeScene } from "./TreeScene.js";
 
 const scene = new Scene();
@@ -31,12 +30,10 @@ controls.target.set(0, -0.25, 0.5);
 controls.update();
 const timer = new THREE.Timer();
 
-// const grid = new Grid();
-// scene.add(grid);
-
 const tree = new TreeScene();
 scene.add(tree);
 tree.load();
+tree.initializePostProcessing(renderer, camera);
 
 function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -50,7 +47,7 @@ function animate(timestamp) {
   timer.update(timestamp);
   tree.update(timer.getDelta());
   controls.update();
-  renderer.render(scene, camera);
+  tree.postProcessing.render();
 }
 
 window.addEventListener("resize", onResize);
