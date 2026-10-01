@@ -2,7 +2,6 @@ import { MeshBasicNodeMaterial } from "three/webgpu";
 import {
   attribute,
   float,
-  Fn,
   modelViewMatrix,
   modelWorldMatrix,
   normalize,
@@ -18,17 +17,7 @@ import {
 } from "three/tsl";
 import { pane } from "./config.js";
 import { sampleIBLIrradiance } from "./utils/sampleIBLIrradiance.js";
-
-export const minimalToneMap = Fn(([color, exposure, whitePoint]) => {
-  const exposedColor = color.mul(exposure);
-  const whitePointSquared = whitePoint.mul(whitePoint);
-
-  // Extended Reinhard tone mapping. It compresses HDR values while allowing
-  // the white point to control where the output reaches display white.
-  return exposedColor
-    .mul(whitePointSquared.add(exposedColor))
-    .div(whitePointSquared.mul(exposedColor.add(1)));
-});
+import { minimalToneMap } from "./utils/minimalToneMap.js";
 
 class LeavesMaterial extends MeshBasicNodeMaterial {
   instanceCount = 0;
@@ -42,7 +31,7 @@ class LeavesMaterial extends MeshBasicNodeMaterial {
 
     this.name = "LeavesMaterial";
 
-    const leavesFolder = pane.addFolder({ title: "leaves" });
+    const leavesFolder = pane.addFolder({ title: "leaves", expanded: false });
     this.opacityLowerUniform = uniform(0);
     this.opacityUpperUniform = uniform(1);
     this.toneMappingExposureUniform = uniform(0.5);

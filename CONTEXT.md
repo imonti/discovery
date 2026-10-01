@@ -45,3 +45,8 @@ This repo contains a small set of standalone Three.js / WebGPU visual experience
 - `leaf world normal` - each exported leaf normal is an authoritative world-space direction used to determine that leaf's diffuse environment irradiance; it is not a plane-local normal.
 - `leaf bone attachment` - a leaf is attached to the bone whose world-space base point (bone origin) is closest to the leaf's world-space position.
 - `leaf material` - the leaf sprite material owns CSV instance-attribute parsing and GPU attribute nodes, while the Bones scene owns the instanced Sprite object and its scene attachment.
+- `leaf particle volume` - the bounded spatial region in which procedural falling leaf particles are placed.
+- `grid position` - a regularly spaced starting location within the leaf particle volume, before a particle's random spread offset is added.
+- `spread offset` - a random displacement added to a grid position to vary the initial placement of a leaf particle.
+- `particle layout seed` - a value selecting a reproducible arrangement of spread offsets; identical seeds and placement settings produce identical initial particle positions.
+- `particle velocity` - a leaf particle's constant direction and speed of travel, producing displacement proportional to elapsed time; falling follows negative Z with sideways drift toward positive X and Y in the particle volume's coordinates.

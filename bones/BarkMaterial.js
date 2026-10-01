@@ -1,12 +1,16 @@
 import * as THREE from "three";
 import { MeshBasicNodeMaterial } from "three/webgpu";
+import { bayer16 } from "three/addons/tsl/math/Bayer.js";
 import {
   Fn,
+  attribute,
   bitangentWorld,
   hue,
   mix,
   normalWorldGeometry,
   saturation,
+  screenCoordinate,
+  smoothstep,
   tangentWorld,
   vec4,
   texture,
@@ -38,7 +42,7 @@ class BarkMaterial extends MeshBasicNodeMaterial {
     this.normalMap = nMap;
     this.name = "BarkMaterial";
     const settings = { uvScale: 3 };
-    const barkFolder = pane.addFolder({ title: "bark" });
+    const barkFolder = pane.addFolder({ title: "bark", expanded: false });
     const uvScaleBinding = barkFolder.addBinding(settings, "uvScale", {
       label: "uv scale",
       min: 0.1,
@@ -53,6 +57,14 @@ class BarkMaterial extends MeshBasicNodeMaterial {
     this.factorUniform = uniform(1.0);
     this.saturationUniform = uniform(0.6);
     this.hueUniform = uniform(0);
+    this.alphaThresholdUniform = uniform(0.02);
+
+    barkFolder.addBinding(this.alphaThresholdUniform, "value", {
+      label: "alpha threshold",
+      min: 0.01,
+      max: 1,
+      step: 0.01,
+    });
 
     barkFolder.addBinding(this.valueUniform, "value", {
       label: "value",
@@ -102,9 +114,11 @@ class BarkMaterial extends MeshBasicNodeMaterial {
       environmentTexture,
       barkNormalWorld,
     );
+    // Center the built-in Bayer texture's 8-bit thresholds so alpha 1 keeps all pixels.
+    this.alphaTestNode = bayer16(screenCoordinate.xy).r.mul(255).add(0.5).div(256);
     this.colorNode = vec4(
       barkColor.mul(irradiance),
-      mapNode.a,
+      smoothstep(0, this.alphaThresholdUniform, attribute("height", "float")),
     );
 
     uvScaleBinding.on("change", ({ value }) => {

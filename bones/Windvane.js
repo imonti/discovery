@@ -35,7 +35,7 @@ class Windvane {
     if (this._configInitialized) return this;
 
     this._configInitialized = true;
-    const windFolder = pane.addFolder({ title: "wind" });
+    const windFolder = pane.addFolder({ title: "wind", expanded: false });
 
     const directionBinding = windFolder.addBinding(
       this._settings,

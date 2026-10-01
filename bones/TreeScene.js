@@ -7,9 +7,11 @@ import { shortestArcQuaternion } from "./Utils.js";
 import { Windvane } from "./Windvane.js";
 import { TreeLeaves } from "./TreeLeaves.js";
 import { LeafParticles } from "./LeafParticles.js";
+import { Grass } from "./Grass.js";
 import { pane } from "./config.js";
 import leavesTextureUrl from "./model/big_leaves.png?url";
 import leafParticleTextureUrl from "./model/leaf.png?url";
+import grassTextureUrl from "./model/grass.png?url";
 
 class TreeScene extends THREE.Object3D {
   windvane = null;
@@ -17,6 +19,7 @@ class TreeScene extends THREE.Object3D {
   model = null;
   leaves = null;
   leafParticles = null;
+  grass = null;
   barkDiffuseTexture = null;
   barkNormalTexture = null;
   environmentTexture = null;
@@ -31,7 +34,7 @@ class TreeScene extends THREE.Object3D {
   constructor() {
     super();
 
-    const environmentFolder = pane.addFolder({ title: "environment" });
+    const environmentFolder = pane.addFolder({ title: "environment", expanded: false });
     for (const axis of ["X", "Y", "Z"]) {
       const rotationBinding = environmentFolder.addBinding(
         this.environmentSettings,
@@ -86,10 +89,19 @@ class TreeScene extends THREE.Object3D {
       textureLoader.loadAsync("./model/bark_normal.png"),
       textureLoader.loadAsync(leavesTextureUrl),
       textureLoader.loadAsync(leafParticleTextureUrl),
+      textureLoader.loadAsync(grassTextureUrl),
       fetch("./model/leaf_instances.csv").then((response) => {
         if (!response.ok) {
           throw new Error(
             `Unable to load leaf_instances.csv: ${response.status}`,
+          );
+        }
+        return response.text();
+      }),
+      fetch("./model/grass_instances.csv").then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Unable to load grass_instances.csv: ${response.status}`,
           );
         }
         return response.text();
@@ -102,7 +114,9 @@ class TreeScene extends THREE.Object3D {
         barkNormalTexture,
         leafTexture,
         leafParticleTexture,
+        grassTexture,
         leafCsv,
+        grassCsv,
       ]) => {
         environmentTexture.mapping = THREE.EquirectangularReflectionMapping;
         this.environmentTexture = environmentTexture;
@@ -123,9 +137,15 @@ class TreeScene extends THREE.Object3D {
           csvText: leafCsv,
           texture: leafTexture,
           environmentTexture,
+          skeleton: findNodeByName(scene, "Bone"),
         });
         this.leafParticles = new LeafParticles({
           texture: leafParticleTexture,
+          environmentTexture,
+        });
+        this.grass = new Grass({
+          csvText: grassCsv,
+          texture: grassTexture,
           environmentTexture,
         });
         this.initialize();
@@ -142,21 +162,35 @@ class TreeScene extends THREE.Object3D {
     const model = this.model;
     model.updateMatrix();
     this.add(model);
-
-    this.add(this.leaves);
+    
+    const particleCenter = this.leafParticles.boundingBox.getCenter(new THREE.Vector3());
+    this.leafParticles.position.x = -particleCenter.x;
+    this.leafParticles.position.y = -particleCenter.y * 2;
     this.add(this.leafParticles);
 
-    const mesh = findNodeByName(model, "TreeGeometry");
-    mesh.material = new BarkMaterial({
+    const treeMesh = findNodeByName(model, "TreeGeometry");
+    const geometry = treeMesh.geometry;
+    geometry.computeBoundingBox();
+    const modelHeight = geometry.boundingBox.max.z - geometry.boundingBox.min.z;
+    const positions = geometry.getAttribute("position");
+    const heights = new Float32Array(positions.count);
+    for (let i = 0; i < positions.count; i++) {
+      heights[i] = modelHeight > 0 ? positions.getZ(i) / modelHeight : 0;
+    }
+    geometry.setAttribute("height", new THREE.BufferAttribute(heights, 1));
+
+    treeMesh.material = new BarkMaterial({
       map: this.barkDiffuseTexture,
       nMap: this.barkNormalTexture,
       environmentTexture: this.environmentTexture,
     });
 
+    this.add(this.grass);
+
     this.windvane = new Windvane();
     this.windvane.onChange = () => this.update(0);
     this.windvane.enableConfig();
-    this.add(this.windvane.display);
+    // this.add(this.windvane.display);
 
     // find root
     this.skeleton = findNodeByName(model, "Bone");
@@ -238,8 +272,6 @@ class TreeScene extends THREE.Object3D {
 
   update(deltaTime = 0) {
     if (!this.skeleton) return;
-
-    this.leafParticles.update(deltaTime);
     this.windvane.update(deltaTime);
 
     // w is a single normalized direction in world space. Every segment is
