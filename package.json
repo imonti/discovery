@@ -3,7 +3,7 @@
   "dependencies": {
     "simplex-noise": "^4.0.3",
     "stats-gl": "^4.2.3",
-    "three": "^0.184.0",
+    "three": "^0.186.1",
     "tweakpane": "^4.0.5"
   },
   "devDependencies": {

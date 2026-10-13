@@ -16,6 +16,7 @@ export default defineConfig({
         valley: path.resolve(__dirname, 'valley/index.html'),
         noise: path.resolve(__dirname, 'noise/index.html'),
         tsl: path.resolve(__dirname, 'tsl/index.html'),
+        shadows: path.resolve(__dirname, 'shadows/index.html'),
       },
     },
   },
