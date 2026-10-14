@@ -15,6 +15,12 @@ import { pass, uniform } from "three/tsl";
 import leavesTextureUrl from "./model/big_leaves.png?url";
 import leafParticleTextureUrl from "./model/leaf.png?url";
 import grassTextureUrl from "./model/grass.png?url";
+import treeModelUrl from "./model/tree.glb?url";
+import forestEnvironmentUrl from "./model/forest.exr?url";
+import barkDiffuseTextureUrl from "./model/bark_diffuse.png?url";
+import barkNormalTextureUrl from "./model/bark_normal.png?url";
+import leafInstancesUrl from "./model/leaf_instances.csv?url";
+import grassInstancesUrl from "./model/grass_instances.csv?url";
 
 class TreeScene extends THREE.Object3D {
   windvane = null;
@@ -108,14 +114,14 @@ class TreeScene extends THREE.Object3D {
     const textureLoader = new THREE.TextureLoader();
 
     Promise.all([
-      gltfLoader.loadAsync("./model/tree.glb"),
-      exrLoader.loadAsync("./model/forest.exr"),
-      textureLoader.loadAsync("./model/bark_diffuse.png"),
-      textureLoader.loadAsync("./model/bark_normal.png"),
+      gltfLoader.loadAsync(treeModelUrl),
+      exrLoader.loadAsync(forestEnvironmentUrl),
+      textureLoader.loadAsync(barkDiffuseTextureUrl),
+      textureLoader.loadAsync(barkNormalTextureUrl),
       textureLoader.loadAsync(leavesTextureUrl),
       textureLoader.loadAsync(leafParticleTextureUrl),
       textureLoader.loadAsync(grassTextureUrl),
-      fetch("./model/leaf_instances.csv").then((response) => {
+      fetch(leafInstancesUrl).then((response) => {
         if (!response.ok) {
           throw new Error(
             `Unable to load leaf_instances.csv: ${response.status}`,
@@ -123,7 +129,7 @@ class TreeScene extends THREE.Object3D {
         }
         return response.text();
       }),
-      fetch("./model/grass_instances.csv").then((response) => {
+      fetch(grassInstancesUrl).then((response) => {
         if (!response.ok) {
           throw new Error(
             `Unable to load grass_instances.csv: ${response.status}`,
