@@ -12,9 +12,12 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        root: path.resolve(__dirname, 'index.html'),
         bones: path.resolve(__dirname, 'bones/index.html'),
         valley: path.resolve(__dirname, 'valley/index.html'),
         noise: path.resolve(__dirname, 'noise/index.html'),
+        dithering: path.resolve(__dirname, 'dithering/index.html'),
+        raymarch: path.resolve(__dirname, 'raymarch/index.html'),
         tsl: path.resolve(__dirname, 'tsl/index.html'),
         shadows: path.resolve(__dirname, 'shadows/index.html'),
       },
