@@ -1,13 +1,15 @@
 import * as THREE from 'three'
+import ripplesAlphaUrl from '../assets/ripples_alpha.png?url'
+import ripplesStencilUrl from '../assets/ripples_stencil.png?url'
 
 export class WaterMaterial extends THREE.ShaderMaterial {
 
     constructor(opacity = 1.0, speed = new THREE.Vector2(0.0, 0.0)) {
 
-        const ripples_alpha = new THREE.TextureLoader().load('assets/ripples_alpha.png')
+        const ripples_alpha = new THREE.TextureLoader().load(ripplesAlphaUrl)
         ripples_alpha.wrapS = THREE.RepeatWrapping
         ripples_alpha.wrapT = THREE.RepeatWrapping
-        const ripples_stencil = new THREE.TextureLoader().load('assets/ripples_stencil.png')
+        const ripples_stencil = new THREE.TextureLoader().load(ripplesStencilUrl)
         super({
             uniforms: {
                 alpha_texture: { value: ripples_alpha },

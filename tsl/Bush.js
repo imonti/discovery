@@ -2,7 +2,7 @@ import * as THREE from "three";
 import icosphereObj from "./models/icosphere.obj?raw";
 import matcapTextureUrl from "./models/matcap2.png?url";
 import leavesTextureUrl from "./models/leaves.png?url";
-import noiseTextureUrl from "./models/perlinNoise.png"
+import noiseTextureUrl from "./models/perlinNoise.png?url";
 import {
   Fn,
   matcapUV,

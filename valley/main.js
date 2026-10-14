@@ -4,7 +4,7 @@ import { SVGLoader } from './SVGLoader.js'
 import { createRadialGradientMaterial, createLinearGradientMaterial } from './gradient/main.js'
 import { WaterMaterial } from './materials/wavesMaterial.js'
 import { remapUVs } from './utils/remapUvs.js'
-import valleySVG from './assets/valley.svg'
+import valleySVG from './assets/valley.svg?url'
 
 const sceneWidthPx = 1400
 const sceneHeightPx = 597

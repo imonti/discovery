@@ -23,6 +23,9 @@ import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { ssao } from "three/addons/tsl/display/SSAONode.js";
 import { createConfig } from "./config.js";
 import { createPCSSShadowNode } from "./PCSSShadowNode.js";
+import grasslandsEnvironmentUrl from "./model/grasslands.exr?url";
+import portalDiffuseUrl from "./model/PortalDiffuse.png?url";
+import portalModelUrl from "./model/portal.glb?url";
 
 const renderer = new WebGPURenderer({ antialias: true });
 renderer.shadowMap.enabled = true;
@@ -44,7 +47,7 @@ camera.position.set(1.777357, 1.616713, 3.003873);
 const scene = new THREE.Scene();
 
 const environmentTexture = await new EXRLoader().loadAsync(
-  new URL("./model/grasslands.exr", import.meta.url).href,
+  grasslandsEnvironmentUrl,
 );
 environmentTexture.mapping = THREE.EquirectangularReflectionMapping;
 // scene.background = environmentTexture;
@@ -90,9 +93,7 @@ floorShadow.position.y = -0.005;
 floorShadow.receiveShadow = true;
 scene.add(floorShadow);
 
-const portalDiffuse = await new THREE.TextureLoader().loadAsync(
-  new URL("./model/PortalDiffuse.png", import.meta.url).href,
-);
+const portalDiffuse = await new THREE.TextureLoader().loadAsync(portalDiffuseUrl);
 portalDiffuse.colorSpace = THREE.SRGBColorSpace;
 portalDiffuse.flipY = false;
 
@@ -106,9 +107,7 @@ stoneMaterial.receivedShadowNode = Fn(([shadow]) =>
   shadow.mul(0.5).add(0.5),
 );
 
-const { scene: portal } = await new GLTFLoader().loadAsync(
-  new URL("./model/portal.glb", import.meta.url).href,
-);
+const { scene: portal } = await new GLTFLoader().loadAsync(portalModelUrl);
 const portalBounds = new THREE.Box3().setFromObject(portal);
 const portalCenter = portalBounds.getCenter(new THREE.Vector3());
 
