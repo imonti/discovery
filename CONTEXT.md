@@ -2,6 +2,99 @@
 
 This repo contains a small set of standalone Three.js / WebGPU visual experiences.
 
+## Shared project controls
+
+Projects should build their Tweakpane interface with `createProjectPane()` from
+`utils/createProjectPane.js` instead of constructing a `Pane` directly. The helper
+provides the common project shell and leaves each demo responsible for adding its
+own controls.
+
+```js
+import { createProjectPane } from "../utils/createProjectPane.js";
+
+const { pane, configFolder } = createProjectPane("Project title", {
+  description: "Short project description.",
+});
+
+const featureFolder = configFolder.addFolder({ title: "Feature" });
+```
+
+`createProjectPane(title, options)` accepts normal Tweakpane `Pane` options plus:
+
+- `description` - optional text rendered below the project selector.
+- `expanded` - whether the `Lab ⚙︎` folder starts expanded; defaults to `true`.
+- `project` - selector value for the current project; defaults to
+  `title.toLowerCase()`.
+
+The helper creates one pane with this hierarchy:
+
+1. A `Project` folder containing a full-row project selector and the optional
+   description.
+2. A `Lab ⚙︎` folder returned as `configFolder`. All project-specific folders and
+   controls belong inside this folder.
+3. A separator and shared footer paragraph.
+
+The selector exposes `valley`, `bones`, `bush`, `shadows`, `noise`, `raymarch`, and
+`dithering`. Selecting a different entry navigates to `../<project>/` relative to
+the current page. Update the `exposedProjects` list in `createProjectPane.js` when
+changing the set of navigable demos.
+
+The helper returns `{ pane, configFolder, footer, projectSelectorFolder,
+projectNavigation }`. It registers `@tweakpane/plugin-camerakit` and the local
+paragraph blade plugin on the pane, so project configs can use Camerakit views
+without registering the plugin again.
+
+`utils/tweakpaneParagraphPlugin.js` implements the custom `paragraph` blade used
+by descriptions and the footer:
+
+```js
+folder.addBlade({
+  view: "paragraph",
+  text: "Text can contain\nmultiple lines.",
+});
+```
+
+Paragraph blades are display-only. Their CSS uses `white-space: pre-line`, so
+newline characters in `text` are preserved.
+
+## Shadows demo
+
+`shadows/config.js` is the reference integration for the shared project pane. Its
+`createConfig()` function calls `createProjectPane("Shadows", ...)` and places the
+Post Processing, Bloom, Environment, and Directional light folders inside the
+returned `configFolder`.
+
+Bloom is generated from a separate scene containing a clone of the portal
+gemstone with an unlit HDR material. The clone shares the original geometry and
+copies its world transform. Its linear depth is compared with the main scene's
+linear depth so foreground geometry occludes the bloom source. The resulting
+masked color is passed to Three.js's TSL `BloomNode` and added to the scene color
+before tone mapping.
+
+The bloom pass is configured in `shadows/main.js`:
+
+```js
+const bloomPass = bloom(gemstoneBloomSource);
+bloomPass.setResolutionScale(0.25);
+bloomPass.threshold.value = 0;
+bloomPass.strength.value = 0.2;
+bloomPass.radius.value = 0.5;
+```
+
+The `0.25` resolution scale is intentional: bloom starts at one quarter of the
+viewport width and height to reduce its render cost. Three.js still constructs
+five progressively smaller blur levels. `radius` is a normalized spread control,
+not a literal blur-kernel radius; it changes the composite weighting between the
+narrow and broad blur levels.
+
+The Bloom folder uses Camerakit `cameraring` blades for strength and radius. Both
+use `series: 1` and `wide: true`. Its `Enabled` binding defaults to `true` on every
+page load. Disabling it sets `bloomPass.strength.value` to zero while retaining
+the authored strength in `settings.bloomStrength`; re-enabling restores that
+value. Strength and radius remain editable while disabled. This is a visual-only
+toggle: the BloomNode and its blur render passes continue to run, so disabling it
+does not recover bloom's GPU cost.
+
 ## Glossary
 
 - `demo` - a single runnable experience in this repo.

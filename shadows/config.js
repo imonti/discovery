@@ -1,4 +1,3 @@
-import { Pane } from "tweakpane";
 import {
   ACESFilmicToneMapping,
   AgXToneMapping,
@@ -9,6 +8,7 @@ import {
   NoToneMapping,
   ReinhardToneMapping,
 } from "three";
+import { createProjectPane } from "../utils/createProjectPane.js";
 
 const toneMappingOptions = [
   { text: "None", value: NoToneMapping },
@@ -24,20 +24,24 @@ export function createConfig(
   renderer,
   directionalLight,
   shadowMaterial,
-  camera,
   scene,
   ssaoEnabled,
   bloomPass,
 ) {
-  const pane = new Pane({ title: "Tone mapping" });
+  const { pane, configFolder } = createProjectPane("Shadows", {
+    description:
+      "Explore soft directional shadows with PCSS, SSAO, bloom, and environment lighting.",
+  });
   const settings = {
     toneMappingExposure: renderer.toneMappingExposure,
     ssaoEnabled: true,
+    bloomEnabled: true,
     bloomStrength: bloomPass.strength.value,
     bloomRadius: bloomPass.radius.value,
   };
+  const toneMappingFolder = configFolder.addFolder({ title: "Post Processing" });
 
-  pane
+  toneMappingFolder
     .addBlade({
       view: "list",
       label: "operator",
@@ -48,7 +52,7 @@ export function createConfig(
       renderer.toneMapping = value;
     });
 
-  pane
+  toneMappingFolder
     .addBinding(settings, "toneMappingExposure", {
       label: "exposure",
       min: 0.1,
@@ -59,7 +63,7 @@ export function createConfig(
       renderer.toneMappingExposure = value;
     });
 
-  pane
+  toneMappingFolder
     .addBinding(settings, "ssaoEnabled", {
       label: "SSAO",
     })
@@ -67,39 +71,52 @@ export function createConfig(
       ssaoEnabled.value = value ? 1 : 0;
     });
 
-  const bloomFolder = pane.addFolder({ title: "Bloom" });
+  const bloomFolder = configFolder.addFolder({ title: "Bloom" });
+  bloomFolder
+    .addBinding(settings, "bloomEnabled", {
+      label: "Enabled",
+    })
+    .on("change", ({ value }) => {
+      bloomPass.strength.value = value ? settings.bloomStrength : 0;
+    });
+
   bloomFolder
     .addBinding(settings, "bloomStrength", {
       label: "strength",
+      view: "cameraring",
+      series: 1,
+      wide: true,
       min: 0,
       max: 3,
-      step: 0.01,
+      unit: {
+        pixels: 50,
+        ticks: 10,
+        value: 0.2
+      }
     })
     .on("change", ({ value }) => {
-      bloomPass.strength.value = value;
+      bloomPass.strength.value = settings.bloomEnabled ? value : 0;
     });
 
   bloomFolder
     .addBinding(settings, "bloomRadius", {
       label: "radius",
+      view: "cameraring",
+      series: 1,
+      wide: true,
       min: 0,
       max: 1,
-      step: 0.01,
+      unit: {
+        pixels: 50,
+        ticks: 10,
+        value: 0.2
+      }
     })
     .on("change", ({ value }) => {
       bloomPass.radius.value = value;
     });
 
-  pane
-    .addButton({ title: "Log camera position" })
-    .on("click", () => {
-      const { x, y, z } = camera.position;
-      console.log(
-        `camera.position.set(${x.toFixed(6)}, ${y.toFixed(6)}, ${z.toFixed(6)});`,
-      );
-    });
-
-  const environmentFolder = pane.addFolder({ title: "Environment" });
+  const environmentFolder = configFolder.addFolder({ title: "Environment" });
   const environmentSettings = {
     rotationY: MathUtils.radToDeg(scene.backgroundRotation.y),
     intensity: scene.environmentIntensity,
@@ -128,7 +145,9 @@ export function createConfig(
       scene.environmentIntensity = value;
     });
 
-  const directionalLightFolder = pane.addFolder({ title: "Directional light" });
+  const directionalLightFolder = configFolder.addFolder({
+    title: "Directional light",
+  });
   const lightSettings = {
     intensity: directionalLight.intensity,
     color: `#${directionalLight.color.getHexString()}`,
@@ -214,5 +233,5 @@ export function createConfig(
       );
     });
 
-  return { settings, lightSettings };
+  return { pane, configFolder, settings, lightSettings };
 }

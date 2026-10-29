@@ -198,6 +198,7 @@ const gemstoneBloomSource = gemstoneColor.mul(gemstoneVisible);
 // normalized to 0..1; the result is added to the scene before tone mapping so
 // AgX can roll the HDR glow into the final display range.
 const bloomPass = bloom(gemstoneBloomSource);
+bloomPass.setResolutionScale(0.25);
 bloomPass.threshold.value = 0;
 bloomPass.strength.value = 0.2;
 bloomPass.radius.value = 0.5;
@@ -213,7 +214,6 @@ createConfig(
   renderer,
   directionalLight,
   floorShadow.material,
-  camera,
   scene,
   ssaoEnabled,
   bloomPass,
