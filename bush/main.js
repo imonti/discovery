@@ -1,7 +1,11 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
-import { MeshStandardNodeMaterial, WebGPURenderer } from 'three/webgpu'
+import {
+  MeshStandardNodeMaterial,
+  RenderPipeline,
+  WebGPURenderer,
+} from 'three/webgpu'
 import {
   abs,
   cameraFar,
@@ -13,6 +17,7 @@ import {
   mix,
   normalize,
   output,
+  pass,
   positionView,
   select,
   texture,
@@ -25,7 +30,9 @@ import {
 } from 'three/tsl'
 import pointGrid from '../tsl/pointGrid.js'
 import { createConfig } from './config.js'
+import { findClosestFaceNormal } from './findClosestFaceNormal.js'
 import { instancedBillboarding } from './instancedBillboarding.js'
+import { gaussianBlur } from 'three/addons/tsl/display/GaussianBlurNode.js'
 import depthMapUrl from './assets/leaves_cluster_depth.png?url'
 import environmentMapUrl from './assets/autumn_field_puresky_1k.exr?url'
 import normalMapUrl from './assets/leaves_cluster_normal.png?url'
@@ -73,6 +80,7 @@ async function init() {
 const scene = new THREE.Scene()
 scene.background = environmentMap
 scene.environment = environmentMap
+scene.environmentIntensity = 0.35
 
 const camera = new THREE.PerspectiveCamera(
   45,
@@ -80,7 +88,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100,
 )
-camera.position.set(2.8, 2.4, 4.2)
+camera.position.copy(new THREE.Vector3(2.8, 2.4, 4.2).multiplyScalar(2.0))
 
 const renderer = new WebGPURenderer({ antialias: true })
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -100,9 +108,6 @@ controls.update()
 const icosphereGeometry = new THREE.IcosahedronGeometry(1, 2)
 icosphereGeometry.computeBoundingBox()
 const points = pointGrid(icosphereGeometry, 5)
-const geometryCenter = new THREE.Vector3()
-icosphereGeometry.boundingBox.getCenter(geometryCenter)
-const geometryCenterUniform = uniform(geometryCenter)
 const normalVariation = uniform(0.5)
 const depthDistance = uniform(0.02)
 const leafLightContrast = uniform(0.75)
@@ -116,8 +121,7 @@ const planeMaterial = new MeshStandardNodeMaterial({
   alphaHash: true,
   transparent: false,
   side: THREE.DoubleSide,
-  roughness: 1,
-  envMapIntensity: 1.0,
+  roughness: 0.85,
 })
 
 // Reduce contrast after environment lighting: bright fragments are pulled
@@ -132,7 +136,12 @@ const instanceMatrix = new THREE.Matrix4()
 const instanceQuaternion = new THREE.Quaternion()
 const instanceScale = new THREE.Vector3()
 const instancePosition = new THREE.Vector3()
+const instanceNormal = new THREE.Vector3()
 const instanceCenterAttribute = new THREE.InstancedBufferAttribute(
+  new Float32Array(points.length * 3),
+  3,
+)
+const instanceNormalAttribute = new THREE.InstancedBufferAttribute(
   new Float32Array(points.length * 3),
   3,
 )
@@ -170,6 +179,13 @@ for (let i = 0; i < points.length; i++) {
     instancePosition.y,
     instancePosition.z,
   )
+  findClosestFaceNormal(icosphereGeometry, instancePosition, instanceNormal)
+  instanceNormalAttribute.setXYZ(
+    i,
+    instanceNormal.x,
+    instanceNormal.y,
+    instanceNormal.z,
+  )
   instanceScaleAttribute.setX(i, instanceScale.x)
   instanceRotationAttribute.setX(i, Math.random() * Math.PI * 2)
   instanceMatrix.compose(
@@ -182,6 +198,7 @@ for (let i = 0; i < points.length; i++) {
 
 planes.instanceMatrix.needsUpdate = true
 instanceCenterAttribute.needsUpdate = true
+instanceNormalAttribute.needsUpdate = true
 instanceScaleAttribute.needsUpdate = true
 instanceRotationAttribute.needsUpdate = true
 planes.computeBoundingBox()
@@ -196,23 +213,23 @@ planeMaterial.vertexNode = instancedBillboarding(
   instanceRotationNode,
 )
 
-const instanceNormal = normalize(instanceCenter.sub(geometryCenterUniform))
+const instanceNormalNode = normalize(instancedBufferAttribute(instanceNormalAttribute))
 const worldUp = vec3(0, 1, 0)
 const fallbackAxis = vec3(1, 0, 0)
 const referenceAxis = select(
-  abs(instanceNormal.dot(worldUp)).greaterThan(0.999),
+  abs(instanceNormalNode.dot(worldUp)).greaterThan(0.999),
   fallbackAxis,
   worldUp,
 )
-const tangent = normalize(referenceAxis.cross(instanceNormal))
-const bitangent = normalize(instanceNormal.cross(tangent))
+const tangent = normalize(referenceAxis.cross(instanceNormalNode))
+const bitangent = normalize(instanceNormalNode.cross(tangent))
 const encodedNoiseNormal = normalize(texture(normalMap, uv()).xyz)
 const tangentSpaceNormalNode = normalize(
   tangent.mul(encodedNoiseNormal.x)
     .add(bitangent.mul(encodedNoiseNormal.y))
-    .add(instanceNormal.mul(encodedNoiseNormal.z)),
+    .add(instanceNormalNode.mul(encodedNoiseNormal.z)),
 )
-const finalNormal = normalize(mix(instanceNormal, tangentSpaceNormalNode, normalVariation))
+const finalNormal = normalize(mix(instanceNormalNode, tangentSpaceNormalNode, normalVariation))
 planeMaterial.normalNode = transformNormalByViewMatrix(finalNormal, cameraViewMatrix)
 
 const signedDepthOffset = texture(depthMap, uv()).r.mul(2).sub(1)
@@ -236,10 +253,16 @@ window.addEventListener('resize', resize)
 function animate() {
   requestAnimationFrame(animate)
   controls.update()
-  renderer.render(scene, camera)
+  renderPipeline.render()
 }
 
 await renderer.init()
+const scenePass = pass(scene, camera)
+const sceneColor = scenePass.getTextureNode('output')
+const blurredScene = gaussianBlur(sceneColor, 0.1, 4)
+const renderPipeline = new RenderPipeline(renderer)
+renderPipeline.outputNode = blurredScene
+
 resize()
 animate()
 

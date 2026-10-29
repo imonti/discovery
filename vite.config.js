@@ -20,6 +20,8 @@ export default defineConfig({
         raymarch: path.resolve(__dirname, 'raymarch/index.html'),
         tsl: path.resolve(__dirname, 'tsl/index.html'),
         shadows: path.resolve(__dirname, 'shadows/index.html'),
+        seaside: path.resolve(__dirname, 'seaside/index.html'),
+        bush: path.resolve(__dirname, 'bush/index.html'),
       },
     },
   },
