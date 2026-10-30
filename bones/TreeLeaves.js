@@ -7,7 +7,6 @@ import {
   cameraNear,
   cameraViewMatrix,
   clamp,
-  float,
   modelWorldMatrix,
   mix,
   normalize,
@@ -74,7 +73,7 @@ class TreeLeaves {
     material.vertexNode = instancedBillboarding(
       worldCenter,
       attribute("leafScale", "float"),
-      float(0),
+      attribute("leafRotation", "float"),
     );
     // Match the Z correction used by sampleIBLIrradiance for bark and the
     // original leaves, before converting the world-space normal to view space.
@@ -128,6 +127,9 @@ class TreeLeaves {
       const scales = new THREE.InstancedBufferAttribute(
         new Float32Array(leaves.length), 1,
       );
+      const rotations = new THREE.InstancedBufferAttribute(
+        new Float32Array(leaves.length), 1,
+      );
       const normals = new THREE.InstancedBufferAttribute(
         new Float32Array(leaves.length * 3), 3,
       );
@@ -136,15 +138,17 @@ class TreeLeaves {
       const rotation = new THREE.Quaternion();
       const scale = new THREE.Vector3();
 
-      leaves.forEach(({ position, size, normal }, index) => {
+      leaves.forEach(({ position, size, normal, roll }, index) => {
         centers.setXYZ(index, position.x, position.y, position.z);
         scales.setX(index, size);
+        rotations.setX(index, roll);
         normals.setXYZ(index, normal.x, normal.y, normal.z);
         matrix.compose(position, rotation, scale.setScalar(size));
         mesh.setMatrixAt(index, matrix);
       });
       geometry.setAttribute("leafCenter", centers);
       geometry.setAttribute("leafScale", scales);
+      geometry.setAttribute("leafRotation", rotations);
       geometry.setAttribute("normal", normals);
       mesh.instanceMatrix.needsUpdate = true;
       mesh.name = "TreeLeafBillboards";
@@ -207,6 +211,7 @@ function parseLeaves(csvText) {
           Number(values[columns.pos_z]),
         ),
         size: Number(values[columns.scale_x]),
+        roll: THREE.MathUtils.degToRad(Number(values[columns.rot_z_deg])),
         normal: new THREE.Vector3(
           Number(values[columns.normal_x]),
           Number(values[columns.normal_y]),
@@ -214,8 +219,8 @@ function parseLeaves(csvText) {
         ),
       };
     })
-    .filter(({ position, size, normal }) =>
-      [position.x, position.y, position.z, size,
+    .filter(({ position, size, normal, roll }) =>
+      [position.x, position.y, position.z, size, roll,
         normal.x, normal.y, normal.z].every(Number.isFinite),
     );
 }

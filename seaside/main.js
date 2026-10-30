@@ -1,4 +1,9 @@
 import * as THREE from 'three'
+import { createProjectPane } from '../utils/createProjectPane.js'
+
+createProjectPane('Seaside', {
+  description: 'Explore a stylized coastal meadow and animated foliage.',
+})
 
 const scene = new THREE.Scene()
 scene.fog = new THREE.Fog(0xb8dfe4, 19, 34)

@@ -1,12 +1,14 @@
-import { Pane } from "tweakpane";
+import { createProjectPane } from "../utils/createProjectPane.js";
 
 const threshold = {
   min: 0.60,
   max: 0.62,
 };
 
-const pane = new Pane();
-const thresholdFolder = pane.addFolder({ title: "threshold" });
+const { pane, configFolder } = createProjectPane("Raymarch", {
+  description: "Explore raymarched volumes and density thresholds.",
+});
+const thresholdFolder = configFolder.addFolder({ title: "threshold" });
 
 thresholdFolder.addBinding(threshold, "min", {
   min: 0,

@@ -6,7 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js'
 import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js'
-import { Pane } from 'tweakpane'
+import { createProjectPane } from '../utils/createProjectPane.js'
 import smokeTextureUrl from './assets/smoke.png?url'
 import whiteTextureUrl64 from './assets/noiseTexture/white64.png?url'
 import whiteTextureUrl128 from './assets/noiseTexture/white128.png?url'
@@ -38,7 +38,9 @@ controls.enableDamping = true
 controls.target.set(0, 0, 0)
 controls.update()
 
-const pane = new Pane()
+const { configFolder } = createProjectPane('Dithering', {
+  description: 'Compare dithering patterns, opacity thresholds, and blur.',
+})
 const ditherDirective = [
   "",
   "BAYER_4",
@@ -64,11 +66,11 @@ const ditherState = {
   dither: ditherOptions.BLUE_NOISE_64,
 }
 
-const ditherBinding = pane.addBinding(ditherState, 'dither', {
+const ditherBinding = configFolder.addBinding(ditherState, 'dither', {
   options: ditherOptions,
 })
 
-const thresholdFolder = pane.addFolder({
+const thresholdFolder = configFolder.addFolder({
   title: 'threshold',
 })
 
@@ -100,7 +102,7 @@ const clipThresholdBinding = thresholdFolder.addBinding(thresholdState, 'clipThr
   step: 0.01,
 })
 
-const blurBinding = pane.addBinding(blurState, 'blurRes', {
+const blurBinding = configFolder.addBinding(blurState, 'blurRes', {
   min: 0.01,
   max: 10,
   step: 0.01,

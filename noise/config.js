@@ -1,4 +1,4 @@
-import { Pane } from "tweakpane";
+import { createProjectPane } from "../utils/createProjectPane.js";
 
 const noiseTypes = [
   "2D Perlin",
@@ -16,7 +16,9 @@ const settings = {
   w: 0,
 };
 
-const pane = new Pane();
+const { pane, configFolder } = createProjectPane("Noise", {
+  description: "Explore procedural noise textures and sampling coordinates.",
+});
 
 const noiseScaleConfig = {
   min: 1,
@@ -25,7 +27,7 @@ const noiseScaleConfig = {
   label: "scale",
 };
 
-const textureParams = pane.addFolder({ title: "texture" });
+const textureParams = configFolder.addFolder({ title: "texture" });
 
 textureParams.addBinding(settings, "noiseType", {
   label: "type",
@@ -41,7 +43,7 @@ textureParams.addBinding(settings, "textureSize", {
   step: 1,
 });
 
-const coordParams = pane.addFolder({ title: "coordinates" });
+const coordParams = configFolder.addFolder({ title: "coordinates" });
 const textureCoordsConfig = {
   min: -2,
   max: 2,

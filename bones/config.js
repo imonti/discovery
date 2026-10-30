@@ -15,7 +15,8 @@ function createConfig() {
 
   config = createProjectPane("Bones", {
     description:
-      "Explore procedural wind and falling leaves in a WebGPU tree scene.",
+      `Exploration of how I would implement wind animation on a deforming tree rigged with bones.
+      The leaves used in this project are the result of the experiments in project "Bush".`,
   });
   configFolder = config.configFolder;
 

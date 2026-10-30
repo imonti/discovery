@@ -5,6 +5,11 @@ import { createRadialGradientMaterial, createLinearGradientMaterial } from './gr
 import { WaterMaterial } from './materials/wavesMaterial.js'
 import { remapUVs } from './utils/remapUvs.js'
 import valleySVG from './assets/valley.svg?url'
+import { createProjectPane } from '../utils/createProjectPane.js'
+
+createProjectPane('Valley', {
+    description: 'Explore an animated SVG landscape with gradients and water.',
+})
 
 const sceneWidthPx = 1400
 const sceneHeightPx = 597
