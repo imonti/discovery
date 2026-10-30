@@ -14,7 +14,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { pane } from "./config.js";
+import { configFolder } from "./config.js";
 import { mulberry32 } from "../utils/Mulberry32.js";
 import { sampleIBLIrradiance } from "./utils/sampleIBLIrradiance.js";
 import { minimalToneMap } from "./utils/minimalToneMap.js";
@@ -209,7 +209,7 @@ class LeafParticles extends THREE.Group {
     this.boundingBoxHelper.visible = this.settings.showBoundingBox;
     this.add(this.boundingBoxHelper);
 
-    const particlesFolder = pane.addFolder({ title: "particles", expanded: false });
+    const particlesFolder = configFolder.addFolder({ title: "particles", expanded: false });
     particlesFolder
       .addBinding(this.settings, "showBoundingBox", {
         label: "bounding box",

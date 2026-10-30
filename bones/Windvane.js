@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { pane } from "./config.js";
+import { configFolder } from "./config.js";
 import { createPerlinSampler } from "../noise/noise2D.js";
 import { Fn, triNoise3D, uniform } from "three/tsl";
 
@@ -57,7 +57,7 @@ class Windvane {
     if (this._configInitialized) return this;
 
     this._configInitialized = true;
-    const windFolder = pane.addFolder({ title: "wind", expanded: false });
+    const windFolder = configFolder.addFolder({ title: "wind", expanded: false });
 
     const directionBinding = windFolder.addBinding(
       this._settings,

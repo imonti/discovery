@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { pane } from "./config.js";
 import {
   Fn,
   uniform,

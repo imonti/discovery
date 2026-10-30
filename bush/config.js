@@ -1,13 +1,15 @@
-import { Pane } from 'tweakpane'
+import { createProjectPane } from '../utils/createProjectPane.js'
 
 export function createConfig(normalVariation, leafLightContrast) {
-  const pane = new Pane({ title: 'Bush' })
+  const { pane, configFolder } = createProjectPane('Bush', {
+    description: 'Explore procedural leaf clusters and environment lighting.',
+  })
   const settings = {
     normalVariation: normalVariation.value,
     leafLightContrast: leafLightContrast.value,
   }
 
-  pane
+  configFolder
     .addBinding(settings, 'normalVariation', {
       label: 'normal variation',
       min: 0,
@@ -18,7 +20,7 @@ export function createConfig(normalVariation, leafLightContrast) {
       normalVariation.value = value
     })
 
-  pane
+  configFolder
     .addBinding(settings, 'leafLightContrast', {
       label: 'leaf light contrast',
       min: 0,

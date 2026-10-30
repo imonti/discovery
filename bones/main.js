@@ -2,7 +2,10 @@ import { Color, PerspectiveCamera, Scene } from "three";
 import * as THREE from "three";
 import { WebGPURenderer } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { createConfig } from "./config.js";
 import { TreeScene } from "./TreeScene.js";
+
+createConfig();
 
 const scene = new Scene();
 scene.background = new Color(0xFFFFFF);

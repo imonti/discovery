@@ -10,7 +10,7 @@ import { Windvane } from "./Windvane.js";
 import { TreeLeaves } from "./TreeLeaves.js";
 import { LeafParticles } from "./LeafParticles.js";
 import { Grass } from "./Grass.js";
-import { pane } from "./config.js";
+import { configFolder } from "./config.js";
 import { pass, uniform } from "three/tsl";
 import leavesTextureUrl from "./model/big_leaves.png?url";
 import leafParticleTextureUrl from "./model/leaf.png?url";
@@ -45,7 +45,7 @@ class TreeScene extends THREE.Object3D {
   constructor() {
     super();
 
-    const environmentFolder = pane.addFolder({ title: "environment", expanded: false });
+    const environmentFolder = configFolder.addFolder({ title: "environment", expanded: false });
     for (const axis of ["X", "Y", "Z"]) {
       const rotationBinding = environmentFolder.addBinding(
         this.environmentSettings,
@@ -71,7 +71,7 @@ class TreeScene extends THREE.Object3D {
       this.updateEnvironmentRotation();
     });
 
-    const postProcessingFolder = pane.addFolder({
+    const postProcessingFolder = configFolder.addFolder({
       title: "post processing",
       expanded: false,
     });

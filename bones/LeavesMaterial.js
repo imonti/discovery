@@ -15,7 +15,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { pane } from "./config.js";
+import { configFolder } from "./config.js";
 import { sampleIBLIrradiance } from "./utils/sampleIBLIrradiance.js";
 import { minimalToneMap } from "./utils/minimalToneMap.js";
 
@@ -31,7 +31,7 @@ class LeavesMaterial extends MeshBasicNodeMaterial {
 
     this.name = "LeavesMaterial";
 
-    const leavesFolder = pane.addFolder({ title: "leaves", expanded: false });
+    const leavesFolder = configFolder.addFolder({ title: "leaves", expanded: false });
     this.opacityLowerUniform = uniform(0);
     this.opacityUpperUniform = uniform(1);
     this.toneMappingExposureUniform = uniform(0.5);

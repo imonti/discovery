@@ -17,7 +17,7 @@ import {
   uniform,
   uv,
 } from "three/tsl";
-import { pane } from "./config.js";
+import { configFolder } from "./config.js";
 import { sampleIBLIrradiance } from "./utils/sampleIBLIrradiance.js";
 
 class BarkMaterial extends MeshBasicNodeMaterial {
@@ -42,7 +42,7 @@ class BarkMaterial extends MeshBasicNodeMaterial {
     this.normalMap = nMap;
     this.name = "BarkMaterial";
     const settings = { uvScale: 3 };
-    const barkFolder = pane.addFolder({ title: "bark", expanded: false });
+    const barkFolder = configFolder.addFolder({ title: "bark", expanded: false });
     const uvScaleBinding = barkFolder.addBinding(settings, "uvScale", {
       label: "uv scale",
       min: 0.1,

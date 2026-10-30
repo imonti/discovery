@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { MeshBasicNodeMaterial } from "three/webgpu";
 import { bayer16 } from "three/addons/tsl/math/Bayer.js";
-import { pane } from "./config.js";
+import { configFolder } from "./config.js";
 import { ColorRamp } from "./utils/ColorRamp.js";
 import { minimalToneMap } from "./utils/minimalToneMap.js";
 import { sampleIBLIrradiance } from "./utils/sampleIBLIrradiance.js";
@@ -65,7 +65,7 @@ class Grass extends THREE.Group {
     const material = new MeshBasicNodeMaterial({
       side: THREE.DoubleSide,
     });
-    const grassFolder = pane.addFolder({ title: "grass", expanded: false });
+    const grassFolder = configFolder.addFolder({ title: "grass", expanded: false });
     const fadeFolder = grassFolder.addFolder({ title: "fade"});
     const fadeLower = uniform(0);
     const fadeUpper = uniform(0.15);
