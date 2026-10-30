@@ -144,3 +144,8 @@ does not recover bloom's GPU cost.
 - `spread offset` - a random displacement added to a grid position to vary the initial placement of a leaf particle.
 - `particle layout seed` - a value selecting a reproducible arrangement of spread offsets; identical seeds and placement settings produce identical initial particle positions.
 - `particle velocity` - a leaf particle's constant direction and speed of travel, producing displacement proportional to elapsed time; falling follows negative Z with sideways drift toward positive X and Y in the particle volume's coordinates.
+
+**Diffuse tree look**:
+A subtly soft rendering of both foliage and bark, with gently blended silhouettes
+and texture details while retaining the tree's overall definition.
+_Avoid_: Edge antialiasing, which describes smoothing pixel steps rather than the intended overall softness.

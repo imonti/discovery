@@ -11,8 +11,7 @@ import { TreeLeaves } from "./TreeLeaves.js";
 import { LeafParticles } from "./LeafParticles.js";
 import { Grass } from "./Grass.js";
 import { configFolder } from "./config.js";
-import { pass, uniform } from "three/tsl";
-import leavesTextureUrl from "./model/big_leaves.png?url";
+import { mix, pass, uniform } from "three/tsl";
 import leafParticleTextureUrl from "./model/leaf.png?url";
 import grassTextureUrl from "./model/grass.png?url";
 import treeModelUrl from "./model/tree.glb?url";
@@ -21,6 +20,9 @@ import barkDiffuseTextureUrl from "./model/bark_diffuse.png?url";
 import barkNormalTextureUrl from "./model/bark_normal.png?url";
 import leafInstancesUrl from "./model/leaf_instances.csv?url";
 import grassInstancesUrl from "./model/grass_instances.csv?url";
+import leafDepthTextureUrl from "../bush/assets/leaves_cluster_depth.png?url";
+import leafNormalTextureUrl from "../bush/assets/leaves_cluster_normal.png?url";
+import leafOpacityTextureUrl from "../bush/assets/leaves_cluster_opacity.png?url";
 
 class TreeScene extends THREE.Object3D {
   windvane = null;
@@ -34,7 +36,8 @@ class TreeScene extends THREE.Object3D {
   environmentTexture = null;
   environmentBackground = null;
   postProcessing = null;
-  blurIntensity = uniform(0.1);
+  blurIntensity = uniform(0.8);
+  softness = uniform(0.35);
   environmentSettings = {
     rotationX: Math.PI / 2,
     rotationY: 0,
@@ -76,9 +79,15 @@ class TreeScene extends THREE.Object3D {
       expanded: false,
     });
     postProcessingFolder.addBinding(this.blurIntensity, "value", {
-      label: "blur intensity",
+      label: "blur radius",
       min: 0,
       max: 10,
+      step: 0.01,
+    });
+    postProcessingFolder.addBinding(this.softness, "value", {
+      label: "softness",
+      min: 0,
+      max: 1,
       step: 0.01,
     });
   }
@@ -89,7 +98,7 @@ class TreeScene extends THREE.Object3D {
     const blur = gaussianBlur(scenePassColor, this.blurIntensity, 4);
 
     this.postProcessing = new RenderPipeline(renderer);
-    this.postProcessing.outputNode = blur;
+    this.postProcessing.outputNode = mix(scenePassColor, blur, this.softness);
   }
 
   updateEnvironmentRotation() {
@@ -118,9 +127,11 @@ class TreeScene extends THREE.Object3D {
       exrLoader.loadAsync(forestEnvironmentUrl),
       textureLoader.loadAsync(barkDiffuseTextureUrl),
       textureLoader.loadAsync(barkNormalTextureUrl),
-      textureLoader.loadAsync(leavesTextureUrl),
       textureLoader.loadAsync(leafParticleTextureUrl),
       textureLoader.loadAsync(grassTextureUrl),
+      textureLoader.loadAsync(leafDepthTextureUrl),
+      textureLoader.loadAsync(leafNormalTextureUrl),
+      textureLoader.loadAsync(leafOpacityTextureUrl),
       fetch(leafInstancesUrl).then((response) => {
         if (!response.ok) {
           throw new Error(
@@ -143,9 +154,11 @@ class TreeScene extends THREE.Object3D {
         environmentTexture,
         barkDiffuseTexture,
         barkNormalTexture,
-        leafTexture,
         leafParticleTexture,
         grassTexture,
+        leafDepthTexture,
+        leafNormalTexture,
+        leafOpacityTexture,
         leafCsv,
         grassCsv,
       ]) => {
@@ -164,11 +177,15 @@ class TreeScene extends THREE.Object3D {
         this.barkNormalTexture.wrapS = THREE.RepeatWrapping;
         this.barkNormalTexture.wrapT = THREE.RepeatWrapping;
         this.model = scene;
+        for (const texture of [leafDepthTexture, leafNormalTexture, leafOpacityTexture]) {
+          texture.colorSpace = THREE.NoColorSpace;
+        }
         this.leaves = new TreeLeaves({
           csvText: leafCsv,
-          texture: leafTexture,
-          environmentTexture,
           skeleton: findNodeByName(scene, "Bone"),
+          depthMap: leafDepthTexture,
+          normalMap: leafNormalTexture,
+          opacityMap: leafOpacityTexture,
         });
         this.leafParticles = new LeafParticles({
           texture: leafParticleTexture,

@@ -1,59 +1,157 @@
 import * as THREE from "three";
-import { LeavesMaterial } from "./LeavesMaterial.js";
+import { MeshStandardNodeMaterial } from "three/webgpu";
+import {
+  abs,
+  attribute,
+  cameraFar,
+  cameraNear,
+  cameraViewMatrix,
+  clamp,
+  float,
+  modelWorldMatrix,
+  mix,
+  normalize,
+  positionView,
+  select,
+  texture,
+  transformNormalByViewMatrix,
+  uniform,
+  uv,
+  vec3,
+  vec4,
+  viewZToPerspectiveDepth,
+} from "three/tsl";
+import { instancedBillboarding } from "../bush/instancedBillboarding.js";
+import { configFolder } from "./config.js";
 
 class TreeLeaves {
-  constructor({ csvText, texture, environmentTexture, skeleton }) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-
-    const material = new LeavesMaterial(texture, environmentTexture);
-    const leafColor = new THREE.Color("#92AD2A");
-    const transforms = parseLeafTransforms(csvText);
+  constructor({ csvText, skeleton, depthMap, normalMap, opacityMap }) {
     const boneBases = collectBoneBases(skeleton);
-    // Keep sprite selection repeatable while still distributing leaves across
-    // the 3x3 spritesheet grid.
-    THREE.MathUtils.seededRandom(0x1eaf);
+    const leavesByBone = new Map();
+    this.meshes = [];
+    this.depthMap = depthMap;
+    this.normalMap = normalMap;
+    this.opacityMap = opacityMap;
+    this.normalVariation = uniform(0.5);
+    this.depthDistance = uniform(0.02);
+    const leavesFolder = configFolder.addFolder({ title: "leaves", expanded: false });
+    leavesFolder.addBinding(this.normalVariation, "value", {
+      label: "normal variation",
+      min: 0,
+      max: 1,
+      step: 0.01,
+    });
+    leavesFolder.addBinding(this.depthDistance, "value", {
+      label: "depth distance",
+      min: 0,
+      max: 0.1,
+      step: 0.001,
+    });
 
-    for (const { position, rotation, scale, normal } of transforms) {
-      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-      // Store normalized cell offsets: 0, 1/3, or 2/3 on each axis.
-      const leafUvOffset = new THREE.Vector2(
-        Math.floor(THREE.MathUtils.seededRandom() * 3) / 3,
-        Math.floor(THREE.MathUtils.seededRandom() * 3) / 3,
+    for (const leaf of parseLeaves(csvText)) {
+      const bone = findClosestBone(leaf.position, boneBases);
+      leaf.position = bone.worldToLocal(leaf.position.clone());
+      if (!leavesByBone.has(bone)) leavesByBone.set(bone, []);
+      leavesByBone.get(bone).push(leaf);
+    }
+
+    const material = new MeshStandardNodeMaterial({
+      color: "#92AD2A",
+      side: THREE.DoubleSide,
+      roughness: 0.85,
+      alphaMap: opacityMap,
+      alphaTest: 0.75,
+    });
+    leavesFolder.addBinding(material, "alphaTest", {
+      label: "alpha test",
+      min: 0,
+      max: 1,
+      step: 0.01,
+    });
+    const worldCenter = modelWorldMatrix.mul(
+      vec4(attribute("leafCenter", "vec3"), 1),
+    ).xyz;
+    material.vertexNode = instancedBillboarding(
+      worldCenter,
+      attribute("leafScale", "float"),
+      float(0),
+    );
+    // Match the Z correction used by sampleIBLIrradiance for bark and the
+    // original leaves, before converting the world-space normal to view space.
+    const leafNormal = attribute("normal", "vec3");
+    const lightingNormal = normalize(vec3(
+      leafNormal.x,
+      leafNormal.y,
+      leafNormal.z.negate(),
+    ));
+    // Use the same stable tangent basis and texture interpretation as Bush.
+    const worldUp = vec3(0, 1, 0);
+    const fallbackAxis = vec3(1, 0, 0);
+    const referenceAxis = select(
+      abs(lightingNormal.dot(worldUp)).greaterThan(0.999),
+      fallbackAxis,
+      worldUp,
+    );
+    const tangent = normalize(referenceAxis.cross(lightingNormal));
+    const bitangent = normalize(lightingNormal.cross(tangent));
+    const encodedNoiseNormal = normalize(texture(normalMap, uv()).xyz);
+    const tangentSpaceNormal = normalize(
+      tangent.mul(encodedNoiseNormal.x)
+        .add(bitangent.mul(encodedNoiseNormal.y))
+        .add(lightingNormal.mul(encodedNoiseNormal.z)),
+    );
+    const finalNormal = normalize(mix(
+      lightingNormal,
+      tangentSpaceNormal,
+      this.normalVariation,
+    ));
+    material.normalNode = normalize(transformNormalByViewMatrix(
+      finalNormal,
+      cameraViewMatrix,
+    ));
+
+    const signedDepthOffset = texture(depthMap, uv()).r.mul(2).sub(1);
+    const adjustedViewZ = positionView.z.sub(
+      signedDepthOffset.mul(this.depthDistance),
+    );
+    material.depthNode = clamp(
+      viewZToPerspectiveDepth(adjustedViewZ, cameraNear, cameraFar),
+      0,
+      1,
+    );
+
+    for (const [bone, leaves] of leavesByBone) {
+      const geometry = new THREE.PlaneGeometry(1, 1);
+      const centers = new THREE.InstancedBufferAttribute(
+        new Float32Array(leaves.length * 3), 3,
       );
-      const uvAttribute = leaf.geometry.getAttribute("uv");
-      for (let vertexIndex = 0; vertexIndex < uvAttribute.count; vertexIndex++) {
-        uvAttribute.setXY(
-          vertexIndex,
-          uvAttribute.getX(vertexIndex) / 3 + leafUvOffset.x,
-          uvAttribute.getY(vertexIndex) / 3 + leafUvOffset.y,
-        );
-      }
-      uvAttribute.needsUpdate = true;
-      const bone = findClosestBone(position, boneBases);
-      const localPosition = bone.worldToLocal(position.clone());
-      leaf.position.copy(localPosition);
-      // Preserve the exported rest-pose rotation values without compensating
-      // for the new bone parent.
-      leaf.rotation.copy(rotation);
-      leaf.scale.set(scale.x, scale.y, 1);
-      const vertexCount = leaf.geometry.getAttribute("position").count;
-      const normals = new Float32Array(vertexCount * 3);
-      for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex += 1) {
-        normal.toArray(normals, vertexIndex * 3);
-      }
-      const normalBuffer = new THREE.BufferAttribute(normals, 3);
-      leaf.geometry.setAttribute("normal", normalBuffer);
-      const colors = new Float32Array(vertexCount * 3);
-      for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex += 1) {
-        leafColor.toArray(colors, vertexIndex * 3);
-      }
-      leaf.geometry.setAttribute(
-        "color",
-        new THREE.BufferAttribute(colors, 3),
+      const scales = new THREE.InstancedBufferAttribute(
+        new Float32Array(leaves.length), 1,
       );
-      bone.add(leaf);
+      const normals = new THREE.InstancedBufferAttribute(
+        new Float32Array(leaves.length * 3), 3,
+      );
+      const mesh = new THREE.InstancedMesh(geometry, material, leaves.length);
+      const matrix = new THREE.Matrix4();
+      const rotation = new THREE.Quaternion();
+      const scale = new THREE.Vector3();
+
+      leaves.forEach(({ position, size, normal }, index) => {
+        centers.setXYZ(index, position.x, position.y, position.z);
+        scales.setX(index, size);
+        normals.setXYZ(index, normal.x, normal.y, normal.z);
+        matrix.compose(position, rotation, scale.setScalar(size));
+        mesh.setMatrixAt(index, matrix);
+      });
+      geometry.setAttribute("leafCenter", centers);
+      geometry.setAttribute("leafScale", scales);
+      geometry.setAttribute("normal", normals);
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.name = "TreeLeafBillboards";
+      // Billboard rotation happens in the shader, outside the CPU plane bounds.
+      mesh.frustumCulled = false;
+      bone.add(mesh);
+      this.meshes.push(mesh);
     }
   }
 }
@@ -92,56 +190,32 @@ function findClosestBone(worldPosition, boneBases) {
   return closest;
 }
 
-function parseLeafTransforms(csvText) {
-  const lines = csvText.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-
-  const headers = lines[0].split(",").map((header) => header.trim());
-  const column = Object.fromEntries(
-    headers.map((header, index) => [header, index]),
+function parseLeaves(csvText) {
+  const [header, ...rows] = csvText.trim().split(/\r?\n/);
+  const columns = Object.fromEntries(
+    header.split(",").map((name, index) => [name.trim(), index]),
   );
 
-  return lines
-    .slice(1)
-    .map((line) => line.split(","))
-    .filter((values) => values.length === headers.length)
-    .map((values) => ({
-      position: new THREE.Vector3(
-        Number(values[column.pos_x]),
-        Number(values[column.pos_y]),
-        Number(values[column.pos_z]),
-      ),
-      rotation: new THREE.Euler(
-        THREE.MathUtils.degToRad(Number(values[column.rot_x_deg])),
-        THREE.MathUtils.degToRad(Number(values[column.rot_y_deg])),
-        THREE.MathUtils.degToRad(Number(values[column.rot_z_deg])),
-        "XYZ",
-      ),
-      scale: new THREE.Vector3(
-        Number(values[column.scale_x]),
-        Number(values[column.scale_y]),
-        Number(values[column.scale_z]),
-      ),
-      normal: new THREE.Vector3(
-        Number(values[column.normal_x]),
-        Number(values[column.normal_y]),
-        Number(values[column.normal_z]),
-      ),
-    }))
-    .filter(({ position, rotation, scale, normal }) =>
-      [
-        position.x,
-        position.y,
-        position.z,
-        rotation.x,
-        rotation.y,
-        rotation.z,
-        scale.x,
-        scale.y,
-        scale.z,
-        normal.x,
-        normal.y,
-        normal.z,
-      ].every(Number.isFinite),
+  return rows
+    .filter((row) => row.trim())
+    .map((row) => {
+      const values = row.split(",");
+      return {
+        position: new THREE.Vector3(
+          Number(values[columns.pos_x]),
+          Number(values[columns.pos_y]),
+          Number(values[columns.pos_z]),
+        ),
+        size: Number(values[columns.scale_x]),
+        normal: new THREE.Vector3(
+          Number(values[columns.normal_x]),
+          Number(values[columns.normal_y]),
+          Number(values[columns.normal_z]),
+        ),
+      };
+    })
+    .filter(({ position, size, normal }) =>
+      [position.x, position.y, position.z, size,
+        normal.x, normal.y, normal.z].every(Number.isFinite),
     );
 }
