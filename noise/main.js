@@ -1,3 +1,4 @@
+import { inject } from '@vercel/analytics';
 import {
   Color,
   DataTexture,
@@ -30,6 +31,9 @@ import * as THREE from "three";
 import { createNoiseTexture3D } from "./noise3D";
 import { createNoiseTexture2D } from "./noise2D";
 import { coordParams, settings, textureParams } from "./config";
+
+inject();
+
 const scene = new Scene();
 scene.background = new Color("#111111");
 

@@ -1,7 +1,10 @@
+import { inject } from '@vercel/analytics';
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import Stats from "stats-gl";
 import { createRaymarchCube } from "./raymarchCube";
 import * as THREE from "three/webgpu";
+
+inject();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color("#333333");

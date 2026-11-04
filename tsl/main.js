@@ -1,3 +1,4 @@
+import { inject } from '@vercel/analytics';
 import * as THREE from "three";
 import { WebGPURenderer, MeshBasicNodeMaterial } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -7,6 +8,8 @@ import { distributePointsOnSurface } from "./distributePointsOnPlane";
 import perlinNoiseUrl from "./models/perlinNoise.png?url";
 import { add, positionLocal, positionWorld, texture, uniform, uv, vec3 } from "three/tsl";
 import { pane } from './pane'
+
+inject();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x18181b);

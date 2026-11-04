@@ -1,3 +1,4 @@
+import { inject } from '@vercel/analytics';
 import * as THREE from "three";
 import {
   MeshBasicNodeMaterial,
@@ -26,6 +27,8 @@ import { createPCSSShadowNode } from "./PCSSShadowNode.js";
 import grasslandsEnvironmentUrl from "./model/grasslands.exr?url";
 import portalDiffuseUrl from "./model/PortalDiffuse.png?url";
 import portalModelUrl from "./model/portal.glb?url";
+
+inject();
 
 const renderer = new WebGPURenderer({ antialias: true });
 renderer.shadowMap.enabled = true;
