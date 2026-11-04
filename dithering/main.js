@@ -1,3 +1,4 @@
+import { inject } from '@vercel/analytics';
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -16,6 +17,8 @@ import blueTextureUrl128 from './assets/noiseTexture/blue128.png?url'
 import blueTextureUrl256 from './assets/noiseTexture/blue256.png?url'
 import vertexShader from './shaders/noise/vertex.glsl?raw'
 import fragmentShader from './shaders/noise/frag.glsl?raw'
+
+inject();
 
 const scene = new THREE.Scene()
 

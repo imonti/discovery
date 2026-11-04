@@ -1,9 +1,12 @@
+import { inject } from '@vercel/analytics';
 import { Color, PerspectiveCamera, Scene } from "three";
 import * as THREE from "three";
 import { WebGPURenderer } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { createConfig } from "./config.js";
 import { TreeScene } from "./TreeScene.js";
+
+inject();
 
 createConfig();
 

@@ -1,5 +1,8 @@
+import { inject } from '@vercel/analytics';
 import * as THREE from 'three'
 import { createProjectPane } from '../utils/createProjectPane.js'
+
+inject();
 
 createProjectPane('Seaside', {
   description: 'Explore a stylized coastal meadow and animated foliage.',

@@ -1,3 +1,4 @@
+import { inject } from '@vercel/analytics';
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
@@ -37,6 +38,8 @@ import depthMapUrl from './assets/leaves_cluster_depth.png?url'
 import environmentMapUrl from './assets/autumn_field_puresky_1k.exr?url'
 import normalMapUrl from './assets/leaves_cluster_normal.png?url'
 import opacityMapUrl from './assets/leaves_cluster_opacity.png?url'
+
+inject();
 
 const loadingManager = new THREE.LoadingManager()
 const textureLoader = new THREE.TextureLoader(loadingManager)
